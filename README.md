@@ -138,18 +138,21 @@ db-report-agent/
 ```bash
 # 以下命令可在任意目录执行：默认数据库路径已基于项目根解析，
 # 不依赖当前工作目录（PyCharm 单文件运行也不会报 unable to open database file）
-# 1) 生成样例库（如果还没生成）
+# 1) 安装本地包（无第三方依赖、纯本地秒装；装后 dbreport 可被解释器识别，消除 PyCharm 报红）
+pip install -e .
+
+# 2) 生成样例库（如果还没生成）
 python demos/seed/generate_sample_data.py
 
-# 2) 命令行问数据（Windows: set PYTHONPATH=src）
+# 3) 命令行问数据（装了包后无需 PYTHONPATH）
 python -m dbreport.cli "各地区订单量占比？"      # 轻路径：语义层预置口径
 python -m dbreport.cli "统计一下订单总数" --llm  # 重量路径：LLM 生成 SQL + 洞察
 python -m dbreport.cli "删除所有订单"            # 护栏拒绝，返回可读错误
 
-# 3) 跑单元测试（28 个用例：护栏/语义/执行/重量路径/评测）
+# 4) 跑单元测试（28 个用例：护栏/语义/执行/重量路径/评测）
 python -m unittest discover -s tests -t .
 
-# 4) 跑离线评测（黄金集回归：命中率/执行成功率/护栏拦截率）
+# 5) 跑离线评测（黄金集回归：命中率/执行成功率/护栏拦截率）
 python eval/run_eval.py
 ```
 

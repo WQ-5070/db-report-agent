@@ -5,12 +5,12 @@
 ## 1. PyCharm 里 `import dbreport` 爆红（Unresolved reference）
 
 - **现象**：`eval/run_eval.py`、`tests/` 里 `from dbreport... import ...` 标红，但运行时正常。
-- **原因**：这些脚本顶部用 `sys.path.insert(...)` 在**运行时**把 `src/` 加进搜索路径；PyCharm 的静态分析**不会执行**这行代码，所以它不知道 `dbreport` 在哪。
-- **解决**（任选其一）：
-  1. 右键 `src` 目录 → **「将目录标记为」→「源代码根目录」**（英文界面：`Mark Directory as → Sources Root`），图标变蓝即生效；
-  2. 或 `Ctrl+Alt+Shift+S`（项目结构）→ 选中项目 → 把 `src` 标记为 Sources；
-  3. 或 `pip install -e .`（editable 安装），让 `dbreport` 成为解释器可见的包。
-- **注意**：`sys.path.insert` 保留，它是「不安装包也能直接跑」的兜底。
+- **原因**：PyCharm 的 Python 解释器找不到 `dbreport` 这个包（`src` 既没被标记为源码根，也没被安装成包）。
+- **解决**（**推荐：① `pip install -e .`，一劳永逸**）：
+  1. **在 PyCharm 终端（用 Python 3.13 解释器）执行 `pip install -e .`**。项目无第三方依赖、纯本地秒装；装完后 `dbreport` 成为解释器可见的正式包，**所有报红消失**，且 `from dbreport...` 可以写回模块顶部、代码最干净（本仓库 `eval/run_eval.py` 已是这种写法），CLI 也不再需要 `PYTHONPATH`。
+  2. 或不装包，把 `src` 标记为源码根：右键 `src` → **「将目录标记为」→「源代码根目录」**（英文：`Mark Directory as → Sources Root`）。
+  3. 或 `Ctrl+Alt+Shift+S`（项目结构）→ 选中项目 → 把 `src` 标记为 Sources。
+- **注意**：`pip install -e .` 之后，`eval/run_eval.py` 里已无 `sys.path` 补丁、无 `# noqa`，模块顶部就是标准库 + 顶层 `from dbreport...`。
 
 ## 2. `python -m unittest discover` 报 `TypeError: expected str, bytes or os.PathLike object, not NoneType`
 
@@ -57,8 +57,10 @@ PyCharm 里运行：`Run → Edit Configurations → + → Python`，Module name
 
 ## 7. 命令行/评测需要 `PYTHONPATH=src` 吗？
 
-- `python -m dbreport.cli ...`：需要 `src` 在搜索路径（PowerShell: `$env:PYTHONPATH = "src"`），或 `pip install -e .` 后不需要；
-- `python eval/run_eval.py`：**不需要**（脚本内置 `sys.path` 注入，单文件运行即可）。
+- **装了包（`pip install -e .`）后都不需要**：
+  - `python -m dbreport.cli "各地区订单量占比？"` 直接跑；
+  - `python eval/run_eval.py` 直接跑（`from dbreport...` 在模块顶部，解释器可见）。
+- **没装包**时：`python -m dbreport.cli` 需 `$env:PYTHONPATH = "src"`；`run_eval.py` 因内置 `sys.path` 注入可直接跑。
 
 ## 8. git 基线与回退
 

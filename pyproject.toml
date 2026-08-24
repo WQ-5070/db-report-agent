@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "db-report-agent"
+version = "0.1.0"
+description = "自动查询数据库并生成报表的数据分析 Agent（生产骨架）"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+# 最小演示：交互式看板
+demo = ["streamlit>=1.32", "pandas>=2.0", "plotly>=5.20"]
+# 生产增强（按 docs/DESIGN.md 第 21.2 节逐步引入）
+prod = [
+    "sqlglot>=25",        # SQL AST 校验（护栏增强）
+    "sqlalchemy>=2.0",    # 多数据库连接
+    "psycopg[binary]>=3.1",
+    "langgraph>=0.2",     # 编排状态机（重量路径）
+    "pyarrow>=15",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+dbreport = ["py.typed"]

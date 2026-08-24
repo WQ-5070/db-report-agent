@@ -1,0 +1,7 @@
+# 最小演示依赖（Python 3.11+ / 3.13 兼容，不含 LLM）
+streamlit>=1.32
+pandas>=2.0
+plotly>=5.20
+
+# 生产版再按 docs/DESIGN.md 第 21.2 节追加：
+# langgraph / langchain / sqlglot / sqlalchemy / psycopg / pyarrow / opentelemetry 等

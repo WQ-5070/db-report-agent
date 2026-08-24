@@ -1,0 +1,40 @@
+# db-report-agent 演示 —— Docker Compose
+# 运行:  cd demos && docker compose up
+# 打开:  http://localhost:8501
+#
+# 说明：
+# - 本项目的最小演示用 SQLite 样例库（零依赖即可跑通架构），
+#   Streamlit 容器挂载仓库目录并自动生成样例数据。
+# - 生产形态走 PostgreSQL（见 schema.sql），完整设计见 docs/DESIGN.md。
+
+services:
+  demo:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - ..:/app
+    ports:
+      - "8501:8501"
+    environment:
+      PYTHONUNBUFFERED: "1"
+    command: >
+      sh -c "
+        pip install --no-cache-dir --quiet streamlit pandas plotly &&
+        python /app/demos/seed/generate_sample_data.py &&
+        streamlit run /app/demos/streamlit_app.py --server.port 8501 --server.address 0.0.0.0
+      "
+
+  # 可选：PostgreSQL（生产形态参考，初始化见 seed/schema.sql）
+  # db:
+  #   image: postgres:16
+  #   environment:
+  #     POSTGRES_DB: db_report_agent
+  #     POSTGRES_USER: agent
+  #     POSTGRES_PASSWORD: agent
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - ./seed/schema.sql:/docker-entrypoint-initdb.d/00-schema.sql
+  #     - pgdata:/var/lib/postgresql/data
+  # volumes:
+  #   pgdata:

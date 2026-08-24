@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+build/
+dist/
+.coverage
+.pytest_cache/
+
+# 生成/临时产物
+*.db
+*.sqlite
+demo.db
+.streamlit/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# 环境变量与 secret（生产请勿入库）
+.env
+.env.*
+*.pem

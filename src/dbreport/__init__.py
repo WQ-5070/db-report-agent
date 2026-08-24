@@ -4,7 +4,7 @@
 """
 from .executor import QueryExecutor, QueryResult
 from .guardrails import SqlGuardrails, ValidationResult
-from .llm import LLMClient, OpenAICompatibleClient
+from .llm import LLMClient, LLMError, OpenAICompatibleClient
 from .pipeline import Report, ReportPipeline, UnmatchedQuestion
 from .reporting import build_report, chart_spec, infer_chart
 from .semantic import (Metric, SchemaCatalog, SemanticRegistry,
@@ -17,6 +17,6 @@ __all__ = [
     "SqlGuardrails", "ValidationResult",
     "QueryExecutor", "QueryResult",
     "build_report", "chart_spec", "infer_chart",
-    "LLMClient", "OpenAICompatibleClient",
+    "LLMClient", "OpenAICompatibleClient", "LLMError",
     "Report", "ReportPipeline", "UnmatchedQuestion",
 ]

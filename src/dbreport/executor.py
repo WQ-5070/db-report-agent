@@ -37,6 +37,7 @@ class QueryExecutor:
         if cached is not None:
             return cached
 
+        sql = sql.strip().rstrip(";").strip()  # SQLite execute 只接受单条语句
         started = time.perf_counter()
         # 注意：sqlite3 连接上下文管理器只管理事务、不关闭连接，
         # 必须显式关闭，否则 Windows 下文件句柄泄漏（测试与生产都会踩到）。

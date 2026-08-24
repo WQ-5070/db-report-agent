@@ -65,6 +65,9 @@ def main(argv: list[str] | None = None) -> int:
     except UnmatchedQuestion as exc:
         print(f"[错误] {exc}")
         return 1
+    except Exception as exc:  # LLMError 等，给出可读提示而非原始堆栈
+        print(f"[错误] 生成失败: {exc}")
+        return 1
 
     print(report.report_md)
     return 0

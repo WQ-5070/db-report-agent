@@ -13,16 +13,31 @@ from __future__ import annotations
 
 import json
 import os
+import urllib.error
 import urllib.request
 from typing import Protocol
 
 from .config import load_dotenv
 
 
+class LLMError(RuntimeError):
+    """LLM 调用失败（含可读信息，不暴露密钥）。"""
+
+
 class LLMClient(Protocol):
     """最小契约：给定提示词，返回补全文本。"""
 
     def complete(self, prompt: str) -> str: ...
+
+
+def _error_detail(exc: urllib.error.HTTPError) -> str:
+    """从 HTTPError 响应体中提取 API 错误信息（如 DeepSeek 的 error.message）。"""
+    try:
+        data = json.loads(exc.read().decode("utf-8", "ignore"))
+        message = data.get("error", {}).get("message") or data.get("message")
+        return str(message)
+    except Exception:
+        return str(exc.reason)
 
 
 class OpenAICompatibleClient:
@@ -53,6 +68,11 @@ class OpenAICompatibleClient:
                 "Authorization": f"Bearer {self._api_key}",
             },
         )
-        with urllib.request.urlopen(request, timeout=self._timeout) as response:
-            data = json.loads(response.read().decode("utf-8"))
+        try:
+            with urllib.request.urlopen(request, timeout=self._timeout) as response:
+                data = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            raise LLMError(f"LLM 接口返回 HTTP {exc.code}: {_error_detail(exc)}") from exc
+        except urllib.error.URLError as exc:
+            raise LLMError(f"LLM 接口无法访问（{exc.reason}）：请检查网络与 DBR_LLM_BASE_URL") from exc
         return data["choices"][0]["message"]["content"].strip()

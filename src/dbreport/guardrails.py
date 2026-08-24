@@ -68,7 +68,7 @@ class SqlGuardrails:
         if sensitive:
             return ValidationResult(False, f"涉及敏感字段: {', '.join(sensitive)}，已拒绝", sql, ())
 
-        safe_sql = sql.strip()
+        safe_sql = sql.strip().rstrip(";").strip()  # 去尾分号，避免 LIMIT 附加成第二条语句
         if not _LIMIT.search(statement):
             safe_sql += f" LIMIT {self._max_rows}"
         return ValidationResult(True, "校验通过", safe_sql, tables)

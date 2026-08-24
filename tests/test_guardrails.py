@@ -27,6 +27,12 @@ class SqlGuardrailsTest(unittest.TestCase):
         self.assertTrue(result.ok)
         self.assertTrue(result.safe_sql.rstrip().endswith("LIMIT 10000"))
 
+    def test_trailing_semicolon_does_not_break_limit(self):
+        # 带尾分号时，LIMIT 不应被附加成第二条语句
+        result = self.guard.validate("SELECT COUNT(*) AS n FROM orders;")
+        self.assertTrue(result.ok)
+        self.assertEqual(result.safe_sql, "SELECT COUNT(*) AS n FROM orders LIMIT 10000")
+
     def test_rejects_write_statements(self):
         for sql in ("DELETE FROM orders",
                     "UPDATE users SET is_active=0",

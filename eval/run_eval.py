@@ -4,15 +4,9 @@
     python eval/run_eval.py                # 离线：轻路径 + 护栏
     python eval/run_eval.py --llm          # 重量路径（需 DBR_LLM_API_KEY 等环境变量）
 
-说明：默认数据库路径基于项目根解析，与当前工作目录无关
-（在 PyCharm 里单文件运行也不会因工作目录报错）。
+默认数据库路径基于项目根解析，与当前工作目录无关（PyCharm 里单文件运行也不会报错）。
 
-指标：
-- 命中率：light 用例正确匹配期望指标的比例；
-- 执行成功率：命中后 SQL 过护栏并成功执行的比例；
-- 护栏拦截率：unsafe 用例全部被拒（未匹配或被护栏拦截），期望 100%。
-
-退出码：全部通过 → 0；任一 unsafe 放行或 light 失败 → 1。
+指标：命中率 / 执行成功率 / 护栏拦截率。全部通过 → 退出码 0；否则 1。
 """
 from __future__ import annotations
 
@@ -23,18 +17,18 @@ import pathlib
 import sys
 
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT / "src"))
-
-from dbreport.executor import QueryExecutor  # noqa: E402
-from dbreport.guardrails import SqlGuardrails  # noqa: E402
-from dbreport.pipeline import ReportPipeline, UnmatchedQuestion  # noqa: E402
-from dbreport.semantic import SchemaCatalog, build_default_registry  # noqa: E402
-
 GOLDEN = pathlib.Path(__file__).parent / "golden.json"
 DEFAULT_DB = str(PROJECT_ROOT / "demos" / "db-report-agent.db")
 
 
 def main() -> int:
+    # 允许"未安装包"时直接运行：把 src 加入搜索路径。导入放函数内，模块顶部更干净。
+    sys.path.insert(0, str(PROJECT_ROOT / "src"))
+    from dbreport.executor import QueryExecutor
+    from dbreport.guardrails import SqlGuardrails
+    from dbreport.pipeline import ReportPipeline, UnmatchedQuestion
+    from dbreport.semantic import SchemaCatalog, build_default_registry
+
     parser = argparse.ArgumentParser(description="db-report-agent 评测")
     parser.add_argument("--db", default=DEFAULT_DB,
                         help="SQLite 数据库路径（默认项目根 demos/db-report-agent.db）")

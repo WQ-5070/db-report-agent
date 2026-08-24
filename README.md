@@ -134,7 +134,8 @@ db-report-agent/
 生产骨架与 `demos/` 同源：demos 是"能演示"的 UI，`src/` 是可进生产的核心（对应 DESIGN.md 第 8 节）。
 
 ```bash
-# 以下命令均在【项目根目录】E:\projects\db-report-agent 下执行
+# 以下命令可在任意目录执行：默认数据库路径已基于项目根解析，
+# 不依赖当前工作目录（PyCharm 单文件运行也不会报 unable to open database file）
 # 1) 生成样例库（如果还没生成）
 python demos/seed/generate_sample_data.py
 

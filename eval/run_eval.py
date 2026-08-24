@@ -1,8 +1,11 @@
 """评测：跑黄金集并输出指标回归。
 
-用法（项目根目录执行）:
+用法:
     python eval/run_eval.py                # 离线：轻路径 + 护栏
     python eval/run_eval.py --llm          # 重量路径（需 DBR_LLM_API_KEY 等环境变量）
+
+说明：默认数据库路径基于项目根解析，与当前工作目录无关
+（在 PyCharm 里单文件运行也不会因工作目录报错）。
 
 指标：
 - 命中率：light 用例正确匹配期望指标的比例；
@@ -15,10 +18,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pathlib
 import sys
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
+PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from dbreport.executor import QueryExecutor  # noqa: E402
 from dbreport.guardrails import SqlGuardrails  # noqa: E402
@@ -26,15 +31,21 @@ from dbreport.pipeline import ReportPipeline, UnmatchedQuestion  # noqa: E402
 from dbreport.semantic import SchemaCatalog, build_default_registry  # noqa: E402
 
 GOLDEN = pathlib.Path(__file__).parent / "golden.json"
+DEFAULT_DB = str(PROJECT_ROOT / "demos" / "db-report-agent.db")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="db-report-agent 评测")
-    parser.add_argument("--db", default="demos/db-report-agent.db",
-                        help="SQLite 数据库路径（默认 demos/db-report-agent.db）")
+    parser.add_argument("--db", default=DEFAULT_DB,
+                        help="SQLite 数据库路径（默认项目根 demos/db-report-agent.db）")
     parser.add_argument("--llm", action="store_true",
                         help="重量路径：未命中时由 LLM 生成 SQL（需 LLM 环境变量）")
     args = parser.parse_args()
+
+    if not os.path.exists(args.db):
+        print(f"[错误] 数据库不存在: {args.db}")
+        print("       请先运行: python demos/seed/generate_sample_data.py")
+        return 1
 
     llm = None
     if args.llm:

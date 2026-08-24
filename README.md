@@ -3,6 +3,7 @@
 > 一个**自动查询数据库并生成报表**的数据分析 Agent —— 用户用自然语言提问，系统自动生成安全可信的 SQL、图表与结论，最终交付可交互仪表盘/可导出报告。
 
 - **详细生产级设计**：[`docs/DESIGN.md`](./docs/DESIGN.md)
+- **常见问题与踩坑记录**：[`docs/FAQ.md`](./docs/FAQ.md)
 - **最小可运行演示**：[`demos/`](./demos/)
 - **技术栈**：Python · LangGraph · MySQL/PostgreSQL · Streamlit/Dash · Docker Compose
 - **核心价值**：本地一条命令即可演示（`docker compose up`），且设计上可**生产落地**（语义层 + 强安全护栏 + 评测回归 + 全链路可观测），不是一次性玩具。
@@ -70,12 +71,13 @@ streamlit run demos/streamlit_app.py
    - Python interpreter：上面配好的 3.13 环境
    保存后点 Run，浏览器打开 `http://localhost:8501`。
 5. **验证**：左侧选一个预置问题，应看到 SQL、图表与洞察；输入"删除所有订单"应被护栏拦截。
-6. **运行单元测试**（二选一）：
+6. **消除 `import dbreport` 爆红**：右键 `src` 目录 → **「将目录标记为」→「源代码根目录」**（英文：`Mark Directory as → Sources Root`）。这样 `eval/`、`tests/` 里 `from dbreport ... import` 的红色波浪线消失。
+7. **运行单元测试**（二选一）：
    - 在项目树中右键 `tests` 目录 → `Run 'Unittest in tests'`（PyCharm 自动以项目根为工作目录）；
    - 或终端先 `cd E:\projects\db-report-agent` 再执行 `python -m unittest discover -s tests -t .`。
    - ⚠️ **不要在项目根的上一级目录跑**：unittest 找不到 `tests` 时会抛误导性的 `TypeError: ... not NoneType`。
 
-> 提示：后续写生产代码时在 `src/` 下新建包即可；PyCharm 会以 `docs/DESIGN.md` 第 8 节的模块划分自动识别目录结构。
+> 更多坑（相对路径、sqlite 连接泄漏、歧义措辞等）见 [`docs/FAQ.md`](./docs/FAQ.md)。
 
 ### 方式 B：Docker Compose（Postgres 版，贴近生产形态）
 

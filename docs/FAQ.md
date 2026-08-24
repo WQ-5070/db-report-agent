@@ -70,3 +70,15 @@ PyCharm 里运行：`Run → Edit Configurations → + → Python`，Module name
   git checkout v1.0.0      # 回到完整基线
   git revert HEAD          # 撤销最近一次提交（保留历史）
   ```
+
+## 9. 密钥/环境变量怎么不进 Git？（.env 封装）
+
+- **模板**：`.env.example` 上传仓库（含占位说明，无真实值）。
+- **真实配置**：复制为 `.env`，**已被 `.gitignore` 忽略**（`.env`、`.env.*`），不会提交、不会在 GitHub 暴露。
+- **自动加载**：`dbreport/config.py` 的 `load_dotenv()`（标准库实现，零依赖）在构造 `OpenAICompatibleClient` 时自动读取项目根 `.env` 并注入环境变量；**已存在的环境变量优先**（不会被 `.env` 覆盖）。
+- **验证**：
+  ```powershell
+  copy .env.example .env     # Windows
+  git status                 # 应看不到 .env，只能看到 .env.example
+  ```
+- 多个 `.env` 变体（如 `.env.local`）也已在 `.gitignore` 中忽略。

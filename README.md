@@ -110,13 +110,15 @@ db-report-agent/
 │   └── DESIGN.md          # 生产级详细设计文档
 ├── src/
 │   └── dbreport/          # 完整 Agent（v1.0.0，标准库实现）
+│       ├── config.py      # .env 加载（标准库，密钥不进 Git）
 │       ├── semantic.py    # 语义层：指标/口径 Registry + Schema 目录
 │       ├── guardrails.py  # 护栏：只读/单语句/LIMIT/白名单/敏感列
 │       ├── executor.py    # 执行层：只读连接(PRAGMA query_only) + 结果缓存
 │       ├── reporting.py   # 呈现层：图表 spec + Markdown 报告(含血缘)
 │       ├── pipeline.py    # 编排层：轻/重双路径（LLM 生成 SQL→护栏重试→洞察）
-│       ├── llm.py         # LLM 接入：OpenAI 兼容客户端（标准库，环境变量配置）
+│       ├── llm.py         # LLM 接入：OpenAI 兼容客户端（标准库，自动读 .env）
 │       └── cli.py         # 命令行入口
+├── .env.example           # 环境配置模板（上传；真实 .env 被忽略，不上传）
 ├── demos/                 # 最小可运行 UI 演示（Streamlit）
 │   ├── docker-compose.yml
 │   ├── seed/
@@ -160,24 +162,35 @@ python eval/run_eval.py
 
 ## LLM 接入（重量路径）
 
-未命中语义层的问题，由 LLM 动态生成 SQL（schema 感知）→ 护栏校验（失败带反馈重试 ≤3 次）→ 执行 → LLM 生成洞察 → 自动选图出报告。配置用环境变量，密钥不进代码：
+未命中语义层的问题，由 LLM 动态生成 SQL（schema 感知）→ 护栏校验（失败带反馈重试 ≤3 次）→ 执行 → LLM 生成洞察 → 自动选图出报告。**密钥不进代码、不进 Git**。
 
-```bash
-# Windows PowerShell
-$env:DBR_LLM_BASE_URL = "https://api.deepseek.com/v1"   # 可选，默认即 DeepSeek
-$env:DBR_LLM_API_KEY  = "sk-xxxx"                        # 必填
-$env:DBR_LLM_MODEL    = "deepseek-chat"                  # 可选
+**推荐方式：用 `.env`**
 
+```powershell
+# 1) 复制模板为 .env，填入你的真实 key（.env 已被 .gitignore 忽略，不会上传）
+copy .env.example .env
+
+# 2) 编辑 .env：把 DBR_LLM_API_KEY 换成你的真实值（可选改 base_url / model）
+DBR_LLM_API_KEY=sk-你的真实key
+
+# 3) 跑重量路径（代码会自动读取项目根的 .env）
 python -m dbreport.cli "统计一下订单总数" --llm
 ```
 
-> 兼容任意 OpenAI 格式的 chat/completions 服务（OpenAI / DeepSeek / 各类网关）。
+**或**直接用环境变量（等价，优先级更高）：
+
+```powershell
+$env:DBR_LLM_API_KEY = "sk-你的真实key"
+python -m dbreport.cli "统计一下订单总数" --llm
+```
+
+> 兼容任意 OpenAI 格式的 chat/completions 服务（OpenAI / DeepSeek / 各类网关）。`.env.example` 模板会上传，`.env` 真实配置不会。
 
 ## 评测（黄金集回归）
 
 ```bash
 python eval/run_eval.py          # 离线：轻路径 + 护栏（无需 LLM）
-python eval/run_eval.py --llm    # 重量路径（需配置上面三个环境变量）
+python eval/run_eval.py --llm    # 重量路径（需在 .env 配 DBR_LLM_API_KEY）
 ```
 
 指标：**轻路径命中率**（语义匹配是否选对指标）、**执行成功率**（SQL 过护栏并成功执行）、**护栏拦截率**（unsafe 用例必须全部被拒，期望 100%）。任一 unsafe 放行或 light 失败 → 退出码 1（可接入 CI 阻断回归）。

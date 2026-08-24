@@ -6,6 +6,8 @@ chat/completions 调用（DeepSeek / OpenAI 及各类兼容网关通用），零
     DBR_LLM_BASE_URL  （默认 https://api.deepseek.com/v1）
     DBR_LLM_API_KEY   （必填，否则无法发起调用）
     DBR_LLM_MODEL     （默认 deepseek-chat）
+
+这些变量可从项目根 .env 读取（构造时自动加载，见 config.load_dotenv）。
 """
 from __future__ import annotations
 
@@ -13,6 +15,8 @@ import json
 import os
 import urllib.request
 from typing import Protocol
+
+from .config import load_dotenv
 
 
 class LLMClient(Protocol):
@@ -24,6 +28,7 @@ class LLMClient(Protocol):
 class OpenAICompatibleClient:
     def __init__(self, base_url: str | None = None, api_key: str | None = None,
                  model: str | None = None, timeout: int = 60):
+        load_dotenv()  # 从项目根 .env 读取配置（环境变量优先级更高）
         self._base_url = (base_url or os.getenv("DBR_LLM_BASE_URL")
                           or "https://api.deepseek.com/v1").rstrip("/")
         self._api_key = api_key or os.getenv("DBR_LLM_API_KEY") or ""
@@ -31,8 +36,8 @@ class OpenAICompatibleClient:
         self._timeout = timeout
         if not self._api_key:
             raise ValueError(
-                "未配置 LLM API Key：请设置环境变量 DBR_LLM_API_KEY，"
-                "或不用 --llm 走离线模式（语义层预置口径）")
+                "未配置 LLM API Key：请在 .env 里设置 DBR_LLM_API_KEY "
+                "（或环境变量），或不用 --llm 走离线模式")
 
     def complete(self, prompt: str) -> str:
         payload = {

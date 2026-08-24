@@ -22,7 +22,9 @@ demo.db
 .DS_Store
 Thumbs.db
 
-# 环境变量与 secret（生产请勿入库）
+# 环境变量与 secret（生产请勿入库；.env.example 是模板，允许上传）
 .env
 .env.*
+!.env.example
+*.env.local
 *.pem

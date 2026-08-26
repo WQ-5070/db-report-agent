@@ -82,3 +82,17 @@ PyCharm 里运行：`Run → Edit Configurations → + → Python`，Module name
   git status                 # 应看不到 .env，只能看到 .env.example
   ```
 - 多个 `.env` 变体（如 `.env.local`）也已在 `.gitignore` 中忽略。
+
+## 10. `closing(sqlite3.connect())` 只关连接、不提交事务（数据写进去却读不出来）
+
+- **现象**：`train()` 写入后 `similar()` 检索为空，单测断言 `0 != 1`；代码看着"写进去了"，下次连接却读不到。
+- **原因**：`contextlib.closing` 只负责 `close()`，**不负责 `commit()`**。sqlite3 默认开启事务，INSERT 后不提交，连接关闭时事务回滚，数据静默丢失。
+- **解决**：写操作（INSERT/UPDATE/DDL）后**显式 `conn.commit()`**；读操作不需要。
+- **注意**：这是第 4 条（`with sqlite3.connect()` 不关连接）的**孪生坑**——一个管"不关"，一个管"不提交"。经验公式：**任何 sqlite3 写代码 = `closing`（关连接）+ `commit()`（写操作提交），一个都不能少**（`src/dbreport/memory.py` 即此写法）。
+
+## 11. `unable to open database file` 的另一诱因：父目录不存在
+
+- **现象**：`sqlite3.connect('.dbreport/memory.db')` 报 `unable to open database file`，路径看起来没问题。
+- **原因**：sqlite **不会自动创建父目录**（`.dbreport/`），目录不存在就直接报错——这是与第 3 条（相对路径依赖工作目录）**不同的诱因**，同一个报错。
+- **解决**：连接前 `pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)`（`memory.py` 构造即此写法）。
+- **注意**：默认库路径若含自定义子目录，务必先建目录；报错文案相同，排查时先分"路径错"还是"目录不存在"。

@@ -119,17 +119,26 @@
 
 设计不是拍脑袋，这里调研了**直接对标**的开源实现，并提炼"哪些做法值得吸收 / 哪些坑要避开"。
 
-### 5.1 对标产品一览
+### 5.1 对标产品一览（2026-08-26 复核，star/许可证/活跃度经 GitHub API 实测）
 
-| 项目 | 链接 | 关键特点 | 对本设计的借鉴 |
-|---|---|---|---|
-| **Canner / WrenAI** | [github.com/Canner/WrenAI](https://github.com/canner/wrenai) | 开源 **GenBI**：通过"开放上下文层"把自然语言转成可信 SQL、图表、仪表盘，支持 20+ 数据源 | **open context layer / 语义上下文层**是核心。用"指标/维度/关系"的语义层而非裸 schema，是提升 text-to-SQL 可信度的关键 |
-| **db-agent/db-agent** | [github.com/db-agent/db-agent](https://github.com/db-agent/db-agent#1) | Databricks/Snowflake/AWS **生产级 text-to-SQL agent**，安全护栏 + schema 感知 + 一条命令部署 | **安全护栏（safety guardrails）+ schema 感知**做到"生产可用"，且强调"一键部署"能落地 |
-| **nadeem4/nl2sql** | [github.com/nadeem4/nl2sql](https://github.com/nadeem4/nl2sql#1) | 企业级**多 Agent NL→SQL**：schema 检索 + 验证 + 全可观测，输出"准确、安全、确定性"的 SQL | **多 Agent 分工 + 验证 + 可观测**是"确定性"的来源；把"验证 SQL"做成独立角色 |
-| **ishaanchowdhury1/Multi-Agent-AI-System-for-Automated-Database-Insights** | [github.com/ishaanchowdhury1/Multi-Agent-AI-System-for-Automated-Database-Insights](https://github.com/ishaanchowdhury1/Multi-Agent-AI-System-for-Automated-Database-Insights#1) | LangGraph 多 Agent 管线 **Analyst → Expert → Reviewer**，自动查 SQLite 并生成 PDF 报告，GPT-4o-mini + Streamlit | **Analyst→Expert→Reviewer 的"生成-评审"结构**与我们的"生成→校验→审阅"高度一致；用 Streamlit 做演示很轻 |
-| **spring-ai-alibaba/DataAgent** | [github.com/spring-ai-alibaba/DataAgent](https://github.com/spring-ai-alibaba/DataAgent#1) | Spring 生态的 Data Agent，数据问答 + 分析 | 企业已有 Java 栈时的选型参考；本设计用 Python/LangGraph，但"数据问答分层"思想一致 |
-| **SAMithila/nl-db-agent** | [github.com/SAMithila/nl-db-agent](https://github.com/SAMithila/nl-db-agent#1) | Agentic RAG，路由到 SQL / 文档 / 两者；86.1% benchmark 准确率，**0% SQL 幻觉** | 强调**准确率评估 + 防 SQL 幻觉**；"路由（router）"决策很有价值；用 benchmark 数字证明可信 |
-| **hasnainyaqub/research-agent** | [github.com/hasnainyaqub/research-agent](https://github.com/hasnainyaqub/research-agent#1) | 生产级自主研究系统：LangGraph + FastAPI + LLM，自动研究、分析、写长报告、审阅 | **长报告生成与自动审阅**的编排结构参考；确认 LangGraph 在"研究+报告"类系统的成熟度 |
+> 2024 年设计时的调研清单 + 2026-08 三轮子代理深挖复核。**核心候选（决定基座选型）见 5.3**，本表为全景。
+
+| 项目 | 链接 | 现状（⭐/许可证/活跃） | 关键特点 | 对本设计的借鉴/结论 |
+|---|---|---|---|---|
+| **Canner / WrenAI** | [github.com/Canner/WrenAI](https://github.com/canner/wrenai) | 17.4k⭐ / core 等 Apache-2.0（docs CC-BY-4.0，AGPL 仅未来预留，商标不授权）/ v0.13.3 活跃，2026-05 大重构 | 开源 **GenBI**：MDL 语义上下文层（cubes/metrics+instructions Git 化）+ dry-plan/row-limit 护栏 + golden eval + `ask --guided/--direct` 轻/重双路径；Wren Engine(Rust/DataFusion) 并入 core | **理念同构度最高**：语义层/护栏/评测/双路径与我们一一对应 → 架构对标首选（5.3） |
+| **eosphoros-ai / DB-GPT** | [github.com/eosphoros-ai/DB-GPT](https://github.com/eosphoros-ai/DB-GPT) | 19.8k⭐ / **MIT（最宽松）** / v0.8.2 极活跃 | 平台型 AI Data Assistant：monorepo 分层 dbgpt-core(AWEL DAG+DI)/serve(REST+agent+evaluation)/app(FastAPI)/ext(连接器)/sandbox(沙箱护栏)；无独立语义层 | **工程骨架**：core/serve/app 分层、AWEL 声明式 DAG、sandbox+脱敏护栏 → 5.3 |
+| **vanna-ai / Vanna** | [github.com/vanna-ai/vanna](https://github.com/vanna-ai/vanna) | 23.8k⭐ / MIT / **已归档**（2026-02 停更，只能抄架构） | 经典 RAG 记忆：`train()` 三类内容（DDL/文档/问题-SQL对）→ 11 种向量库；相似问题/SQL/文档检索注入；成功查询 **auto-train 自学习闭环**；无护栏、无评测 | **记忆机制原型**（我们最缺的一块）→ 5.3 |
+| **db-agent / db-agent** | [github.com/db-agent/db-agent](https://github.com/db-agent/db-agent) | 29⭐ / Apache-2.0 / 低强度维护，AAAI-25 论文背书 | `knowledge.json` 四段式语义层（descriptions/expressions/examples/instructions）+ 关键词/embedding 过滤注入；SELECT/WITH-only 护栏（字符串级）；**修复循环**（失败回喂重生成）；**结果集级评测自愈**（失败样例剔除+失效记忆、通过样例转 few-shot）；跨 Agent 脱敏记忆 | **护栏/评测进阶**：代码极小易仿，理念最贴近 → 5.3 |
+| **nadeem4 / nl2sql** | [github.com/nadeem4/nl2sql](https://github.com/nadeem4/nl2sql) | 4⭐ / MIT / 极活跃但 PyPI 未发布 | LangGraph 可嵌入库，五层：控制面(DAG)/安全面(**valid-by-construction：LLM 生成 AST 计划而非裸 SQL**)/数据面(沙箱进程池+指纹版本化 schema 快照)/可靠性(熔断)/可观测(OTel+审计) | **下一代安全理念**：AST 计划 + schema 快照 → 远期借鉴，不借依赖 |
+| **Apache Superset** | [github.com/apache/superset](https://github.com/apache/superset) | 74k⭐ / Apache-2.0 / 强劲 | BI 平台：SQL Lab AI 助手 + MCP server + **Alerts & Reports 定时报表** | P4 定时报表模型参考 |
+| **Chat2DB** | [github.com/chat2db/Chat2DB](https://github.com/chat2db/Chat2DB) | 28k⭐ / Apache | 客户端形态 AI 数据库工具 | 交互设计参考 |
+| **腾讯 SuperSonic** | [github.com/tencentmusic/supersonic](https://github.com/tencentmusic/supersonic) | — | 语义建模（指标即服务 Semantic Layer） | WrenAI 之外的另一语义层范本 |
+| **ishaanchowdhury1/Multi-Agent-AI-System...** | [github.com/ishaanchowdhury1/Multi-Agent-AI-System-for-Automated-Database-Insights](https://github.com/ishaanchowdhury1/Multi-Agent-AI-System-for-Automated-Database-Insights#1) | 教学级 | LangGraph **Analyst → Expert → Reviewer** 报告管线 | 生成-评审结构参考（2024 调研保留） |
+| **spring-ai-alibaba/DataAgent** | [github.com/spring-ai-alibaba/DataAgent](https://github.com/spring-ai-alibaba/DataAgent#1) | Java 栈 | Spring 生态数据问答 | Java 栈选型参考（2024 调研保留） |
+| **SAMithila/nl-db-agent** | [github.com/SAMithila/nl-db-agent](https://github.com/SAMithila/nl-db-agent#1) | 教学级 | Agentic RAG 路由 + 0% SQL 幻觉 | 路由思想（2024 调研保留） |
+| **Dataherald** | [github.com/Dataherald/dataherald](https://github.com/Dataherald/dataherald) | 3.6k⭐ / Apache-2.0 / **停滞 2 年** | text-to-SQL 引擎 | ❌ 不投入 |
+| **MindsDB/MindsHub** | [github.com/mindsdb/mindsdb](https://github.com/mindsdb/mindsdb) | 改名+**混合许可证** | 数据预测平台 | ❌ 许可证有法律风险 |
+| 微项目（nl2sql-mcp / t2sql-rlhf / Autonomous-SQL-Agent / JimuChatBI） | — | 归档/个位数⭐/无许可证 | 概念级 | ❌ 不投入 |
 
 ### 5.2 提炼出的核心经验（以下设计均由此而来）
 
@@ -139,6 +148,26 @@
 4. **可观测 + 可评估是"生产"与"演示"的分水岭**：要有全链路 tracing 与离线评测集，才能持续改进而不过拟合演示集。→ 第 13、14 节。
 5. **多 Agent 协作（生成→评审）比单 Agent 更稳**：但会引入成本/延迟，要做**分级**（简单问题走轻量路径，复杂问题走重路径）。→ 第 7 节、第 10 节。
 6. **"一键部署"决定它能不能被采用**：演示与生产的部署路径都要顺畅。→ 第 16 节。
+
+### 5.3 基座选型结论（2026-08-26 三轮子代理深挖收敛）
+
+> **结论：不 fork 任何重平台。** 按"成熟架构对标 + 模块级合法借鉴"在本地重建轻量基座。许可证全部宽松（MIT / Apache-2.0），参考重建无障碍；仅注意避开 WrenAI 商标/商业版/AGPL 预留条款、MindsDB 混合许可、Vanna 品牌（已归档）。
+
+**基座蓝图（模块级借鉴映射）：**
+
+| 我们的模块 | 现状 | 对标/借鉴 | 动作 |
+|---|---|---|---|
+| `semantic.py` 语义层 | 关键词 Registry | **WrenAI MDL 语义层**：cubes/metrics + instructions Git 化资产；db-agent `knowledge.json` 四段式（descriptions/expressions/examples/instructions）+ 过滤注入 | 语义层资产化（P1-P3 渐进） |
+| 记忆/上下文（**缺失**） | 无 | **Vanna 三类训练内容**（DDL/文档/问题-SQL对）+ 相似检索注入 + 成功查询 **auto-train 自学习闭环** | 新增模块，最高优先级 |
+| `guardrails.py` 护栏 | 只读/LIMIT/黑名单（字符串级） | WrenAI dry-plan + row-limit 原语组合；db-agent SELECT/WITH-only；**远期 nl2sql AST 计划（valid-by-construction）** | 护栏原语化 + 远期 AST |
+| `eval/` 评测 | golden.json 命中/执行/拦截 | **db-agent 结果集级评分 + 失败样例自愈剔除 + 通过样例转 few-shot** | 评测自愈化 |
+| `pipeline.py` 轻/重双路径 | 已有 | WrenAI `--guided/--direct` 直接对应，无需改 | 确认方向正确 |
+| 工程分层（P2/P4） | 单模块 | **DB-GPT core/serve/app 分层 + AWEL DAG + sandbox 脱敏护栏** | P2 工程化时参考 |
+| 定时报表（P4） | 无 | Superset Alerts & Reports 模型 | P4 实现时参考 |
+
+**近期借鉴优先级**：① Vanna 记忆机制（三类训练 + auto-train）→ ② db-agent 评测自愈 → ③ WrenAI 语义层资产化 → ④ DB-GPT 工程分层（P2 时）。
+
+**原始调研材料**：子代理完整报告与三仓库源码留存于 `E:\projects\.research\`（repos/va/{db-agent-main,nl2sql-main,vanna-main}、tgz/），可随时复核。
 
 ---
 
@@ -680,9 +709,14 @@ flowchart LR
 
 ### 21.1 参考开源项目（GitHub）
 
-- [Canner / WrenAI — GenBI 语义上下文层 text-to-SQL](https://github.com/Canner/WrenAI)
-- [db-agent/db-agent — 生产级 text-to-SQL，安全护栏 + schema 感知](https://github.com/db-agent/db-agent)
-- [nadeem4/nl2sql — 企业级多 Agent NL→SQL，schema 检索 + 验证 + 可观测](https://github.com/nadeem4/nl2sql)
+- [Canner / WrenAI — GenBI 语义上下文层 text-to-SQL（17.4k⭐，架构同构度最高）](https://github.com/Canner/WrenAI)
+- [eosphoros-ai/DB-GPT — AI 数据助手平台（19.8k⭐，MIT，工程分层/沙箱护栏参考）](https://github.com/eosphoros-ai/DB-GPT)
+- [vanna-ai/vanna — RAG text-to-SQL（23.8k⭐，MIT，记忆机制原型，已归档只抄架构）](https://github.com/vanna-ai/vanna)
+- [db-agent/db-agent — 生产级 text-to-SQL，语义层+护栏+评测自愈（AAAI-25）](https://github.com/db-agent/db-agent)
+- [nadeem4/nl2sql — 企业级多 Agent NL→SQL，AST 计划安全面](https://github.com/nadeem4/nl2sql)
+- [Apache Superset — BI 平台，SQL Lab AI + 定时报表](https://github.com/apache/superset)
+- [Chat2DB — 客户端 AI 数据库工具（28k⭐）](https://github.com/chat2db/Chat2DB)
+- [腾讯 SuperSonic — 语义建模（指标即服务）](https://github.com/tencentmusic/supersonic)
 - [ishaanchowdhury1/Multi-Agent-AI-System-for-Automated-Database-Insights — LangGraph Analyst→Expert→Reviewer 报告管线](https://github.com/ishaanchowdhury1/Multi-Agent-AI-System-for-Automated-Database-Insights)
 - [spring-ai-alibaba/DataAgent — Spring 生态数据问答 Agent](https://github.com/spring-ai-alibaba/DataAgent)
 - [SAMithila/nl-db-agent — Agentic RAG，路由 SQL/文档，86.1% 准确率，0% SQL 幻觉](https://github.com/SAMithila/nl-db-agent)

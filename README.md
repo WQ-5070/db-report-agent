@@ -199,11 +199,18 @@ python eval/run_eval.py --llm    # 重量路径（需在 .env 配 DBR_LLM_API_KE
 
 ---
 
-## 参考开源项目（本设计的对标调研）
+## 参考开源项目（本设计的对标调研，2026-08 复核）
 
-- [Canner / WrenAI — GenBI 语义上下文层 text-to-SQL](https://github.com/Canner/WrenAI)
-- [db-agent/db-agent — 生产级 text-to-SQL，安全护栏 + schema 感知](https://github.com/db-agent/db-agent)
-- [nadeem4/nl2sql — 企业级多 Agent NL→SQL，schema 检索 + 验证 + 可观测](https://github.com/nadeem4/nl2sql)
+> 基座选型结论（选谁借鉴、谁规避）见 [`docs/DESIGN.md` 第 5.3 节](./docs/DESIGN.md)。
+
+- [Canner / WrenAI — GenBI 语义上下文层 text-to-SQL（17.4k⭐，架构同构度最高）](https://github.com/Canner/WrenAI)
+- [eosphoros-ai/DB-GPT — AI 数据助手平台（19.8k⭐，MIT，工程分层/沙箱护栏参考）](https://github.com/eosphoros-ai/DB-GPT)
+- [vanna-ai/vanna — RAG text-to-SQL（23.8k⭐，MIT，记忆机制原型，已归档只抄架构）](https://github.com/vanna-ai/vanna)
+- [db-agent/db-agent — 生产级 text-to-SQL，语义层+护栏+评测自愈（AAAI-25）](https://github.com/db-agent/db-agent)
+- [nadeem4/nl2sql — 企业级多 Agent NL→SQL，AST 计划安全面](https://github.com/nadeem4/nl2sql)
+- [Apache Superset — BI 平台，SQL Lab AI + 定时报表（74k⭐）](https://github.com/apache/superset)
+- [Chat2DB — 客户端 AI 数据库工具（28k⭐）](https://github.com/chat2db/Chat2DB)
+- [腾讯 SuperSonic — 语义建模（指标即服务）](https://github.com/tencentmusic/supersonic)
 - [ishaanchowdhury1/Multi-Agent-AI-System-for-Automated-Database-Insights — LangGraph Analyst→Expert→Reviewer 报告管线](https://github.com/ishaanchowdhury1/Multi-Agent-AI-System-for-Automated-Database-Insights)
 - [spring-ai-alibaba/DataAgent — Spring 生态数据问答 Agent](https://github.com/spring-ai-alibaba/DataAgent)
 - [SAMithila/nl-db-agent — Agentic RAG，路由 SQL/文档，0% SQL 幻觉](https://github.com/SAMithila/nl-db-agent)

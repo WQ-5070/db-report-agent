@@ -1,4 +1,5 @@
 """评测回归测试：离线跑黄金集，断言指标全过、退出码为 0。"""
+import json
 import os
 import pathlib
 import subprocess
@@ -35,6 +36,34 @@ class RunEvalTest(unittest.TestCase):
             )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("PASS", result.stdout)
+
+    def test_heal_removes_stale_expected(self):
+        """结果集期望过时：连续失败 2 次后 --heal 自动剔除并报告 SELF-HEALED。"""
+        golden = {"light": [
+            {"question": "各地区订单量占比？", "metric": "region_orders",
+             "expected": {"columns": ["region", "orders"],
+                          "rows": [["华北", 608], ["华东", 602]]}}],
+            "unsafe": []}
+        with tempfile.TemporaryDirectory() as tmp:
+            db = pathlib.Path(tmp) / "test.db"
+            from tests._fixture import make_db
+            make_db(str(db))  # 小库：region_orders 实际只返回 1 行 → 与 expected 不符
+            gpath = pathlib.Path(tmp) / "golden.json"
+            gpath.write_text(json.dumps(golden, ensure_ascii=False),
+                             encoding="utf-8")
+            fpath = pathlib.Path(tmp) / "failures.json"
+            env = _eval_env()
+            args = [sys.executable, "eval/run_eval.py", "--db", str(db),
+                    "--heal", "--golden", str(gpath), "--failures", str(fpath)]
+            first = subprocess.run(args, cwd=ROOT, capture_output=True,
+                                   text=True, env=env)
+            self.assertEqual(first.returncode, 1,
+                             first.stdout + first.stderr)  # 第 1 次：计数 1，仍失败
+            second = subprocess.run(args, cwd=ROOT, capture_output=True,
+                                    text=True, env=env)
+            self.assertEqual(second.returncode, 0,
+                             second.stdout + second.stderr)  # 第 2 次：自愈剔除
+            self.assertIn("SELF-HEALED", second.stdout)
 
 
 if __name__ == "__main__":

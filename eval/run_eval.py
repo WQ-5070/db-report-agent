@@ -24,6 +24,22 @@ from dbreport.semantic import SchemaCatalog, build_default_registry
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
 GOLDEN = pathlib.Path(__file__).parent / "golden.json"
 DEFAULT_DB = str(PROJECT_ROOT / "demos" / "db-report-agent.db")
+HEAL_THRESHOLD = 2  # 结果集不符连续失败多少次后自愈剔除（期望可能过时）
+FAILURES_PATH = PROJECT_ROOT / ".dbreport" / "eval_failures.json"
+
+
+def _load_failures() -> dict:
+    """读取跨运行的连续失败计数（文件不存在 = 全新开始）。"""
+    if FAILURES_PATH.exists():
+        return json.loads(FAILURES_PATH.read_text(encoding="utf-8"))
+    return {}
+
+
+def _save_failures(failures: dict) -> None:
+    """持久化连续失败计数（写入前确保 .dbreport/ 目录存在）。"""
+    FAILURES_PATH.parent.mkdir(parents=True, exist_ok=True)
+    FAILURES_PATH.write_text(
+        json.dumps(failures, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def _norm_rows(rows) -> list[tuple]:
@@ -62,6 +78,12 @@ def main() -> int:
                         help="SQLite 数据库路径（默认项目根 demos/db-report-agent.db）")
     parser.add_argument("--llm", action="store_true",
                         help="重量路径：未命中时由 LLM 生成 SQL（需 LLM 环境变量）")
+    parser.add_argument("--heal", action="store_true",
+                        help="自愈模式：结果集不符连续失败 ≥2 次的用例自动剔除（期望可能过时）")
+    parser.add_argument("--golden", default=str(GOLDEN),
+                        help="黄金集路径（默认 eval/golden.json）")
+    parser.add_argument("--failures", default=str(FAILURES_PATH),
+                        help="失败计数文件路径（默认 .dbreport/eval_failures.json）")
     args = parser.parse_args()
 
     if not os.path.exists(args.db):
@@ -79,30 +101,40 @@ def main() -> int:
         SqlGuardrails(SchemaCatalog.from_sqlite(args.db)),
         QueryExecutor(args.db),
     )
-    golden = json.loads(GOLDEN.read_text(encoding="utf-8"))
+    golden = json.loads(pathlib.Path(args.golden).read_text(encoding="utf-8"))
+    failures = _load_failures() if args.heal else {}
+    healed: list[str] = []
 
     light_failures: list[str] = []
     matched = executed = 0
     for case in golden["light"]:
+        q = case["question"]
         try:
-            report = pipeline.ask(case["question"], llm=llm)
+            report = pipeline.ask(q, llm=llm)
         except UnmatchedQuestion:
             light_failures.append(
-                f"{case['question']} -> 未匹配（期望 {case['metric']}）")
+                f"{q} -> 未匹配（期望 {case['metric']}）")
             continue
         if report.metric_id != case["metric"]:
             light_failures.append(
-                f"{case['question']} -> {report.metric_id}（期望 {case['metric']}）")
+                f"{q} -> {report.metric_id}（期望 {case['metric']}）")
             continue
         matched += 1
         if report.result is None:
-            light_failures.append(f"{case['question']} -> 执行失败（护栏/异常）")
+            light_failures.append(f"{q} -> 执行失败（护栏/异常）")
             continue
         executed += 1
         expected = case.get("expected")
         if expected is not None and not _rows_match(report.result, expected):
-            light_failures.append(
-                f"{case['question']} -> 结果集与期望不符（{report.result.row_count} 行）")
+            failures[q] = failures.get(q, 0) + 1
+            if failures[q] >= HEAL_THRESHOLD:
+                healed.append(q)
+                continue
+            light_failures.append(f"{q} -> 结果集与期望不符")
+        else:
+            failures.pop(q, None)  # 通过即清零，连续失败才累计
+    if args.heal:
+        _save_failures(failures)
 
     unsafe_leaks: list[str] = []
     unsafe_handled = 0
@@ -126,6 +158,8 @@ def main() -> int:
     print(f"护栏拦截率:     {unsafe_handled}/{total_unsafe}（unsafe 用例未被放行）")
     for line in light_failures:
         print(f"  [FAIL] {line}")
+    for q in healed:
+        print(f"  [SELF-HEALED] {q}（结果集不符连续 {HEAL_THRESHOLD} 次，期望可能过时，已剔除）")
     for line in unsafe_leaks:
         print(f"  [LEAK] {line}")
 

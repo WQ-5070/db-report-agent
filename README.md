@@ -45,7 +45,7 @@
 
 ### 方式 A：零依赖快速试跑（SQLite 样例库）
 
-不需要装数据库/容器，仅需 Python 3.11+（**已在本机 Python 3.13 验证**）：
+不需要装数据库/容器，仅需 Python 3.12（**已在本机 Python 3.12.10 验证**）：
 
 ```bash
 # 1) 安装依赖
@@ -60,15 +60,15 @@ streamlit run demos/streamlit_app.py
 
 浏览器打开后，在左侧选择问题或直接输入，就能看到：**自然语言 → SQL → 图表 → 自然语言结论** 的完整链路，并展示生成的 SQL。
 
-### 在 PyCharm 中开发（Python 3.13）
+### 在 PyCharm 中开发（Python 3.12）
 
 1. **打开项目**：`File → Open` 选择 `E:\projects\db-report-agent`（整个目录作为项目根）。
-2. **配置解释器**：`Settings → Project: db-report-agent → Python Interpreter → Add Interpreter → Add Local Interpreter`，选择 **Python 3.13**（PyCharm 检测到根目录 `requirements.txt` 会提示安装依赖，点 Install 即可，或终端执行 `pip install -r requirements.txt`）。
+2. **配置解释器**：`Settings → Project: db-report-agent → Python Interpreter → Add Interpreter → Add Local Interpreter`，选择 **Python 3.12**（PyCharm 检测到根目录 `requirements.txt` 会提示安装依赖，点 Install 即可，或终端执行 `pip install -r requirements.txt`）。
 3. **生成样例库**：在项目树中右键 `demos/seed/generate_sample_data.py → Run`。
 4. **运行看板（推荐配置）**：`Run → Edit Configurations → + → Python`，填：
    - Module name：`streamlit`
    - Parameters：`run demos/streamlit_app.py`
-   - Python interpreter：上面配好的 3.13 环境
+   - Python interpreter：上面配好的 3.12 环境
    保存后点 Run，浏览器打开 `http://localhost:8501`。
 5. **验证**：左侧选一个预置问题，应看到 SQL、图表与洞察；输入"删除所有订单"应被护栏拦截。
 6. **消除 `import dbreport` 爆红**：右键 `src` 目录 → **「将目录标记为」→「源代码根目录」**（英文：`Mark Directory as → Sources Root`）。这样 `eval/`、`tests/` 里 `from dbreport ... import` 的红色波浪线消失。

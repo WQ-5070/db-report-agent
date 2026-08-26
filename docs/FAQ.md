@@ -7,7 +7,7 @@
 - **现象**：`eval/run_eval.py`、`tests/` 里 `from dbreport... import ...` 标红，但运行时正常。
 - **原因**：PyCharm 的 Python 解释器找不到 `dbreport` 这个包（`src` 既没被标记为源码根，也没被安装成包）。
 - **解决**（**推荐：① `pip install -e .`，一劳永逸**）：
-  1. **在 PyCharm 终端（用 Python 3.13 解释器）执行 `pip install -e .`**。项目无第三方依赖、纯本地秒装；装完后 `dbreport` 成为解释器可见的正式包，**所有报红消失**，且 `from dbreport...` 可以写回模块顶部、代码最干净（本仓库 `eval/run_eval.py` 已是这种写法），CLI 也不再需要 `PYTHONPATH`。
+  1. **在 PyCharm 终端（用 Python 3.12 解释器）执行 `pip install -e .`**。项目无第三方依赖、纯本地秒装；装完后 `dbreport` 成为解释器可见的正式包，**所有报红消失**，且 `from dbreport...` 可以写回模块顶部、代码最干净（本仓库 `eval/run_eval.py` 已是这种写法），CLI 也不再需要 `PYTHONPATH`。
   2. 或不装包，把 `src` 标记为源码根：右键 `src` → **「将目录标记为」→「源代码根目录」**（英文：`Mark Directory as → Sources Root`）。
   3. 或 `Ctrl+Alt+Shift+S`（项目结构）→ 选中项目 → 把 `src` 标记为 Sources。
 - **注意**：`pip install -e .` 之后，`eval/run_eval.py` 里已无 `sys.path` 补丁、无 `# noqa`，模块顶部就是标准库 + 顶层 `from dbreport...`。

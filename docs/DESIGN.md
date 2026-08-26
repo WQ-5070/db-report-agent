@@ -40,7 +40,7 @@
   - **数据/BI 负责人**：语义层设计、安全与权限、治理。
   - **产品/运营**：用户旅程、演示脚本、KPI。
   - **甲方/管理层**：范围、风险、路线图、合规边界。
-- **技术基线**：Python 3.11+ · LangGraph · MySQL/PostgreSQL · Streamlit 交互式看板 · Docker Compose（本地演示）。
+- **技术基线**：Python 3.12 · LangGraph · MySQL/PostgreSQL · Streamlit 交互式看板 · Docker Compose（本地演示）。
 - **附带产物**：本仓库 `demos/` 提供最小可运行骨架，`docs/DESIGN.md` 描述完整生产架构。二者是"同一套设计的两端"——骨架即可运行，完整架构用于落地。
 
 ---

@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "db-report-agent"
 version = "0.1.0"
 description = "自动查询数据库并生成报表的数据分析 Agent（生产骨架）"
-requires-python = ">=3.11"
+requires-python = ">=3.12,<3.14"
 dependencies = []
 
 [project.optional-dependencies]

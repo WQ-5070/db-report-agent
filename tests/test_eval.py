@@ -20,10 +20,15 @@ def _eval_env() -> dict:
 
 class RunEvalTest(unittest.TestCase):
     def test_offline_eval_passes(self):
+        """评测回归：用确定性样例库（seed=42）跑黄金集，expected 与其强绑定。"""
         with tempfile.TemporaryDirectory() as tmp:
-            db = pathlib.Path(tmp) / "test.db"
-            from tests._fixture import make_db
-            make_db(str(db))
+            db = pathlib.Path(tmp) / "sample.db"
+            gen = subprocess.run(
+                [sys.executable, "demos/seed/generate_sample_data.py",
+                 "--output", str(db)],
+                cwd=ROOT, capture_output=True, text=True, env=_eval_env(),
+            )
+            self.assertEqual(gen.returncode, 0, gen.stdout + gen.stderr)
             result = subprocess.run(
                 [sys.executable, "eval/run_eval.py", "--db", str(db)],
                 cwd=ROOT, capture_output=True, text=True, env=_eval_env(),

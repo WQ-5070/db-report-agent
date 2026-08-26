@@ -26,6 +26,36 @@ GOLDEN = pathlib.Path(__file__).parent / "golden.json"
 DEFAULT_DB = str(PROJECT_ROOT / "demos" / "db-report-agent.db")
 
 
+def _norm_rows(rows) -> list[tuple]:
+    """规范化行：字符串去空白、数字转 float、行整体排序（行序不敏感）。"""
+    def norm(value):
+        if isinstance(value, str):
+            return value.strip()
+        if isinstance(value, (int, float)):
+            return float(value)
+        return value
+
+    return sorted(tuple(norm(v) for v in row) for row in rows)
+
+
+def _rows_match(actual, expected: dict, rel_tol: float = 1e-6) -> bool:
+    """结果集比对：列名一致 + 行数一致 + 逐行一致（数字容忍相对误差）。"""
+    if tuple(actual.columns) != tuple(expected.get("columns", ())):
+        return False
+    act_rows = _norm_rows(actual.rows)
+    exp_rows = _norm_rows(expected.get("rows", []))
+    if len(act_rows) != len(exp_rows):
+        return False
+    for act_row, exp_row in zip(act_rows, exp_rows):
+        for a, e in zip(act_row, exp_row):
+            if isinstance(a, float) and isinstance(e, float):
+                if abs(a - e) > rel_tol * max(1.0, abs(e)):
+                    return False
+            elif a != e:
+                return False
+    return True
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="db-report-agent 评测")
     parser.add_argument("--db", default=DEFAULT_DB,
@@ -63,12 +93,16 @@ def main() -> int:
         if report.metric_id != case["metric"]:
             light_failures.append(
                 f"{case['question']} -> {report.metric_id}（期望 {case['metric']}）")
-        else:
-            matched += 1
+            continue
+        matched += 1
         if report.result is None:
             light_failures.append(f"{case['question']} -> 执行失败（护栏/异常）")
-        else:
-            executed += 1
+            continue
+        executed += 1
+        expected = case.get("expected")
+        if expected is not None and not _rows_match(report.result, expected):
+            light_failures.append(
+                f"{case['question']} -> 结果集与期望不符（{report.result.row_count} 行）")
 
     unsafe_leaks: list[str] = []
     unsafe_handled = 0

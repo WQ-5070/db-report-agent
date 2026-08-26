@@ -8,6 +8,7 @@
 """
 from __future__ import annotations
 
+import argparse
 import os
 import random
 import sqlite3
@@ -145,19 +146,26 @@ def build(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def main() -> None:
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    with sqlite3.connect(DB_PATH) as conn:
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="生成 db-report-agent 样例库（确定性，random.seed(42)）")
+    parser.add_argument("--output", default=DB_PATH,
+                        help="样例库输出路径（默认 demos/db-report-agent.db）")
+    args = parser.parse_args(argv)
+    path = args.output
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with sqlite3.connect(path) as conn:
         build(conn)
     # 统计
-    with sqlite3.connect(DB_PATH) as conn:
+    with sqlite3.connect(path) as conn:
         cur = conn.cursor()
         n_orders = cur.execute("SELECT COUNT(*) FROM orders").fetchone()[0]
         n_users = cur.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-    print(f"生成样例库成功: {os.path.abspath(DB_PATH)}")
+    print(f"生成样例库成功: {os.path.abspath(path)}")
     print(f"  users  = {n_users}")
     print(f"  orders = {n_orders}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    sys.exit(main())

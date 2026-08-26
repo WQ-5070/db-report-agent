@@ -3,7 +3,7 @@ import unittest
 
 from dbreport.executor import QueryExecutor
 
-from _fixture import make_db
+from tests._fixture import make_db
 
 
 class QueryExecutorTest(unittest.TestCase):

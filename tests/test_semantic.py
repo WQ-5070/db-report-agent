@@ -3,7 +3,7 @@ import unittest
 
 from dbreport.semantic import SchemaCatalog, SemanticRegistry, build_default_registry
 
-from _fixture import make_db
+from tests._fixture import make_db
 
 
 class SchemaCatalogTest(unittest.TestCase):

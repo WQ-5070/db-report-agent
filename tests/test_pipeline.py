@@ -7,7 +7,7 @@ from dbreport.pipeline import ReportPipeline, UnmatchedQuestion
 from dbreport.semantic import (Metric, SchemaCatalog, SemanticRegistry,
                                build_default_registry)
 
-from _fixture import make_db
+from tests._fixture import make_db
 
 
 class FakeLLM:

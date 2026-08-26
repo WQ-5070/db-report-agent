@@ -4,7 +4,7 @@ import unittest
 from dbreport.executor import QueryExecutor, QueryResult
 from dbreport.reporting import infer_chart
 
-from _fixture import make_db
+from tests._fixture import make_db
 
 
 class InferChartTest(unittest.TestCase):

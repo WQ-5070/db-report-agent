@@ -4,7 +4,7 @@ import unittest
 from dbreport.guardrails import SqlGuardrails
 from dbreport.semantic import SchemaCatalog
 
-from _fixture import make_db
+from tests._fixture import make_db
 
 
 class SqlGuardrailsTest(unittest.TestCase):

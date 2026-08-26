@@ -96,6 +96,24 @@ class ReportPipelineTest(unittest.TestCase):
         self.assertIsNone(report.result)
         self.assertIn("护栏拦截", report.report_md)
 
+    def test_memory_few_shot_injection_and_auto_train(self):
+        from dbreport.memory import Memory
+        mem = Memory(self._tmp.name + "/mem.db")
+        mem.train("各品类销售额对比",
+                  "SELECT product_category, SUM(amount) AS sales FROM orders "
+                  "GROUP BY product_category ORDER BY sales DESC")
+        llm = FakeLLM(
+            "SELECT product_category, ROUND(SUM(amount), 2) AS sales "
+            "FROM orders GROUP BY product_category ORDER BY sales DESC",
+            "洞察文本",
+        )
+        question = "各品类销售额排行"
+        report = self._pipeline(SemanticRegistry([]), memory=mem).ask(
+            question, llm=llm)
+        self.assertTrue(report.validation.ok)
+        self.assertIn("各品类销售额对比", llm.prompts[0])  # few-shot 注入
+        self.assertIn(question, [q for q, _ in mem.similar(question)])  # auto-train
+
 
 if __name__ == "__main__":
     unittest.main()

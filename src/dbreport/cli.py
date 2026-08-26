@@ -24,6 +24,7 @@ DEFAULT_DB = str(PROJECT_ROOT / "demos" / "db-report-agent.db")
 def _build_pipeline(db: str):
     from .executor import QueryExecutor
     from .guardrails import SqlGuardrails
+    from .memory import Memory
     from .pipeline import ReportPipeline
     from .semantic import SchemaCatalog, build_default_registry
 
@@ -31,6 +32,7 @@ def _build_pipeline(db: str):
         build_default_registry(),
         SqlGuardrails(SchemaCatalog.from_sqlite(db)),
         QueryExecutor(db),
+        memory=Memory(),
     )
 
 

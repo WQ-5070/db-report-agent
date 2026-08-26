@@ -52,10 +52,12 @@ class ReportPipeline:
     def __init__(self, registry: SemanticRegistry,
                  guardrails: SqlGuardrails,
                  executor: QueryExecutor,
+                 memory=None,
                  max_sql_retries: int = 3):
         self._registry = registry
         self._guardrails = guardrails
         self._executor = executor
+        self._memory = memory
         self._max_sql_retries = max_sql_retries
 
     def ask(self, question: str, llm: LLMClient | None = None) -> Report:
@@ -92,6 +94,7 @@ class ReportPipeline:
         result = self._executor.run(validation.safe_sql)
         chart = infer_chart(result)
         insight = self._generate_insight(question, llm, result)
+        self._remember(question, validation.safe_sql, result)
         metric = Metric(id="llm_generated", aliases=(), sql=validation.safe_sql,
                         title=question, chart=chart["type"],
                         x=chart["x"], y=chart["y"], insight="")
@@ -101,14 +104,21 @@ class ReportPipeline:
         return Report(question, None, validation.safe_sql, validation,
                       result, chart, report_md, trace_id)
 
+    def _remember(self, question: str, sql: str, result: QueryResult) -> None:
+        """自学习闭环：重量路径执行成功且返回数据 → 沉淀问题-SQL 样本。"""
+        if self._memory is not None and result.row_count > 0:
+            self._memory.train(question, sql)
+
     def _generate_valid_sql(self, question: str,
                             llm: LLMClient) -> tuple[str | None, ValidationResult | None]:
         """生成 SQL 并过护栏；失败时把护栏原因反馈给 LLM 重试。"""
         schema_text = self._schema_text()
+        examples = self._memory.similar(question) if self._memory else []
         last_validation: ValidationResult | None = None
         for _ in range(self._max_sql_retries):
             feedback = last_validation.message if last_validation else None
-            raw = llm.complete(self._sql_prompt(question, schema_text, feedback))
+            raw = llm.complete(
+                self._sql_prompt(question, schema_text, feedback, examples))
             sql = _extract_sql(raw)
             if not sql:
                 last_validation = ValidationResult(False, "LLM 未输出 SQL", "", ())
@@ -140,7 +150,8 @@ class ReportPipeline:
 
     @staticmethod
     def _sql_prompt(question: str, schema_text: str,
-                    feedback: str | None = None) -> str:
+                    feedback: str | None = None,
+                    examples: list[tuple[str, str]] | None = None) -> str:
         prompt = (
             "你是数据查询 Agent。根据数据库 schema 与用户问题，"
             "生成一条只读 SELECT SQL（SQLite 方言）。\n"
@@ -149,8 +160,12 @@ class ReportPipeline:
             "- 禁止查询敏感字段（含 phone/password/token/email 等列名）\n"
             "- 直接输出 SQL 本身，不要解释、不要 markdown 围栏\n\n"
             f"数据库 schema：\n{schema_text}\n\n"
-            f"用户问题：{question}"
         )
+        if examples:
+            lines = [f"问题: {q}\nSQL: {sql}" for q, sql in examples]
+            prompt += ("历史相似问题的参考 SQL（写法可复用，注意不要照抄业务条件）：\n"
+                       + "\n\n".join(lines) + "\n\n")
+        prompt += f"用户问题：{question}"
         if feedback:
             prompt += (f"\n\n上次生成的 SQL 未通过安全校验：{feedback}\n"
                        "请修正后重新输出，只输出 SQL。")

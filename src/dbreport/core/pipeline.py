@@ -12,6 +12,7 @@ import re
 import uuid
 from dataclasses import dataclass
 
+from .errors import AgentError, ErrorCode
 from .executor import QueryExecutor, QueryResult
 from .guardrails import SqlGuardrails, ValidationResult
 from .llm import LLMClient
@@ -20,8 +21,11 @@ from .reporting import INSIGHT_ROWS, build_report, chart_spec, infer_chart
 from .semantic import Metric, SemanticRegistry
 
 
-class UnmatchedQuestion(Exception):
-    """未匹配到任何语义层指标，且未提供 LLM 走重量路径（SEMANTIC_NOT_FOUND）。"""
+class UnmatchedQuestion(AgentError):
+    """未匹配到任何语义层指标，且未提供 LLM 走重量路径。"""
+
+    def __init__(self, message: str):
+        super().__init__(message, code=ErrorCode.SEMANTIC_NOT_FOUND)
 
 
 @dataclass(frozen=True)

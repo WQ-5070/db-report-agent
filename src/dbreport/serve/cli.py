@@ -34,23 +34,16 @@ def main(argv: list[str] | None = None) -> int:
         print("       请先运行: python demos/seed/generate_sample_data.py")
         return 1
 
-    llm = None
-    if args.llm:
-        from ..core.llm import OpenAICompatibleClient
-        try:
-            llm = OpenAICompatibleClient()
-        except ValueError as exc:
-            print(f"[错误] {exc}")
-            return 1
-
-    from ..core.pipeline import UnmatchedQuestion
-    pipeline = build_pipeline(args.db)
+    from ..core.errors import AgentError
+    from ..core.llm import OpenAICompatibleClient
     try:
+        llm = OpenAICompatibleClient() if args.llm else None
+        pipeline = build_pipeline(args.db)
         report = pipeline.ask(args.question, llm=llm)
-    except UnmatchedQuestion as exc:
-        print(f"[错误] {exc}")
+    except AgentError as exc:
+        print(f"[错误] {exc.code}: {exc}")
         return 1
-    except Exception as exc:  # LLMError 等，给出可读提示而非原始堆栈
+    except Exception as exc:  # 非预期错误，给出可读提示而非原始堆栈
         print(f"[错误] 生成失败: {exc}")
         return 1
 

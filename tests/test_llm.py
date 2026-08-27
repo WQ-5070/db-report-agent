@@ -4,6 +4,7 @@ import unittest
 import urllib.error
 from unittest import mock
 
+from dbreport.core.errors import AgentError, ErrorCode
 from dbreport.core.llm import LLMError, OpenAICompatibleClient
 from dbreport.core.pipeline import _extract_sql
 
@@ -26,14 +27,16 @@ class OpenAICompatibleClientTest(unittest.TestCase):
         # 隔离项目 .env：清空环境变量，且不加载 .env，模拟"未配置任何 key"
         with mock.patch("dbreport.core.llm.load_dotenv"):
             with mock.patch.dict(os.environ, {}, clear=True):
-                with self.assertRaises(ValueError):
+                with self.assertRaises(AgentError) as ctx:
                     OpenAICompatibleClient(api_key="")
+        self.assertEqual(ctx.exception.code, ErrorCode.CONFIG_MISSING)
 
     def test_defaults_from_env(self):
         with mock.patch("dbreport.core.llm.load_dotenv"):
             with mock.patch.dict(os.environ, {}, clear=True):
-                with self.assertRaises(ValueError):
+                with self.assertRaises(AgentError) as ctx:
                     OpenAICompatibleClient(base_url="https://x/v1", api_key=None)
+        self.assertEqual(ctx.exception.code, ErrorCode.CONFIG_MISSING)
 
     def test_http_error_becomes_readable_llm_error(self):
         client = OpenAICompatibleClient(api_key="sk-test", base_url="https://x/v1")

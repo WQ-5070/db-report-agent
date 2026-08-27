@@ -14,6 +14,7 @@ from contextlib import closing
 from dataclasses import dataclass
 
 from .config import PROJECT_ROOT
+from .errors import AgentError, ErrorCode
 
 # 敏感列关键词（小写匹配列名子串）——演示用数据驱动名单，生产接数据分级系统
 SENSITIVE_KEYWORDS = ("password", "token", "secret", "id_card", "phone",
@@ -96,7 +97,9 @@ class Metric:
         """从资产文件条目构建；缺字段立即报错（配置错了要大声）。"""
         missing = [f for f in _REQUIRED_FIELDS if f not in data]
         if missing:
-            raise ValueError(f"指标缺少字段: {', '.join(missing)}")
+            raise AgentError(
+                f"指标缺少字段: {', '.join(missing)}",
+                code=ErrorCode.ASSET_INVALID)
         return cls(
             id=data["id"],
             aliases=tuple(data["aliases"]),
@@ -139,7 +142,8 @@ def load_metrics(path: str | pathlib.Path) -> list[Metric]:
     ids = [m.id for m in metrics]
     duplicates = sorted({i for i in ids if ids.count(i) > 1})
     if duplicates:
-        raise ValueError(f"指标 id 重复: {duplicates}")
+        raise AgentError(f"指标 id 重复: {duplicates}",
+                         code=ErrorCode.ASSET_INVALID)
     return metrics
 
 
@@ -150,9 +154,9 @@ def build_registry(path: str | pathlib.Path | None = None) -> SemanticRegistry:
     """
     metrics_path = pathlib.Path(path) if path else METRICS_PATH
     if not metrics_path.exists():
-        raise FileNotFoundError(
-            f"指标资产文件不存在: {metrics_path}；"
-            "请检查 semantics/metrics.json")
+        raise AgentError(
+            f"指标资产文件不存在: {metrics_path}；请检查 semantics/metrics.json",
+            code=ErrorCode.ASSET_MISSING)
     return SemanticRegistry(load_metrics(metrics_path))
 
 

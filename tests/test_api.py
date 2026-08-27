@@ -51,6 +51,17 @@ class ApiTest(unittest.TestCase):
             urllib.request.urlopen(request)
         self.assertEqual(ctx.exception.code, 404)
 
+    def test_unmatched_question_returns_error_code(self):
+        request = urllib.request.Request(
+            f"{self.base}/ask",
+            data=json.dumps({"question": "统计一下订单总数"}).encode("utf-8"),
+            headers={"Content-Type": "application/json"})
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            urllib.request.urlopen(request)
+        self.assertEqual(ctx.exception.code, 400)
+        body = json.loads(ctx.exception.read().decode("utf-8"))
+        self.assertEqual(body["error"]["code"], "SEMANTIC_NOT_FOUND")
+
 
 if __name__ == "__main__":
     unittest.main()

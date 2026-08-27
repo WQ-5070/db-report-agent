@@ -18,10 +18,14 @@ import urllib.request
 from typing import Protocol
 
 from .config import load_dotenv
+from .errors import AgentError, ErrorCode
 
 
-class LLMError(RuntimeError):
+class LLMError(AgentError):
     """LLM 调用失败（含可读信息，不暴露密钥）。"""
+
+    def __init__(self, message: str):
+        super().__init__(message, code=ErrorCode.LLM_UNAVAILABLE)
 
 
 class LLMClient(Protocol):
@@ -50,9 +54,10 @@ class OpenAICompatibleClient:
         self._model = model or os.getenv("DBR_LLM_MODEL") or "deepseek-chat"
         self._timeout = timeout
         if not self._api_key:
-            raise ValueError(
+            raise AgentError(
                 "未配置 LLM API Key：请在 .env 里设置 DBR_LLM_API_KEY "
-                "（或环境变量），或不用 --llm 走离线模式")
+                "（或环境变量），或不用 --llm 走离线模式",
+                code=ErrorCode.CONFIG_MISSING)
 
     def complete(self, prompt: str) -> str:
         payload = {

@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from ..core.errors import AgentError
 from . import build_pipeline
 
 HOST, PORT = "127.0.0.1", 8730
@@ -41,15 +42,17 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if self.path != "/ask":
-            self._send(404, {"error": "not found"})
+            self._send(404, {"error": {"code": "NOT_FOUND", "message": "not found"}})
             return
         try:
             body = json.loads(
                 self.rfile.read(int(self.headers.get("Content-Length", 0))))
             report = self.pipeline.ask(body.get("question", ""))
             self._send(200, report_to_dict(report))
+        except AgentError as exc:
+            self._send(400, {"error": {"code": exc.code, "message": str(exc)}})
         except Exception as exc:
-            self._send(400, {"error": str(exc)})
+            self._send(500, {"error": {"code": "INTERNAL", "message": str(exc)}})
 
     def _send(self, code: int, payload: dict) -> None:
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")

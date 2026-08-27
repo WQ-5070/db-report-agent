@@ -14,26 +14,9 @@ from __future__ import annotations
 
 import argparse
 import os
-import pathlib
 import sys
 
-PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2]
-DEFAULT_DB = str(PROJECT_ROOT / "demos" / "db-report-agent.db")
-
-
-def _build_pipeline(db: str):
-    from .executor import QueryExecutor
-    from .guardrails import SqlGuardrails
-    from .memory import Memory
-    from .pipeline import ReportPipeline
-    from .semantic import SchemaCatalog, build_default_registry
-
-    return ReportPipeline(
-        build_default_registry(),
-        SqlGuardrails(SchemaCatalog.from_sqlite(db)),
-        QueryExecutor(db),
-        memory=Memory(),
-    )
+from .serve import DEFAULT_DB, build_pipeline
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -60,8 +43,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[错误] {exc}")
             return 1
 
-    from .pipeline import ReportPipeline, UnmatchedQuestion
-    pipeline = _build_pipeline(args.db)
+    from .pipeline import UnmatchedQuestion
+    pipeline = build_pipeline(args.db)
     try:
         report = pipeline.ask(args.question, llm=llm)
     except UnmatchedQuestion as exc:

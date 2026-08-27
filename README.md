@@ -147,9 +147,9 @@ pip install -e .
 python demos/seed/generate_sample_data.py
 
 # 3) 命令行问数据（装了包后无需 PYTHONPATH）
-python -m dbreport.cli "各地区订单量占比？"      # 轻路径：语义层预置口径
-python -m dbreport.cli "统计一下订单总数" --llm  # 重量路径：LLM 生成 SQL + 洞察
-python -m dbreport.cli "删除所有订单"            # 护栏拒绝，返回可读错误
+python -m dbreport.serve.cli "各地区订单量占比？"      # 轻路径：语义层预置口径
+python -m dbreport.serve.cli "统计一下订单总数" --llm  # 重量路径：LLM 生成 SQL + 洞察
+python -m dbreport.serve.cli "删除所有订单"            # 护栏拒绝，返回可读错误
 
 # 4) 跑单元测试（28 个用例：护栏/语义/执行/重量路径/评测）
 python -m unittest discover -s tests -t .
@@ -174,14 +174,14 @@ copy .env.example .env
 DBR_LLM_API_KEY=sk-你的真实key
 
 # 3) 跑重量路径（代码会自动读取项目根的 .env）
-python -m dbreport.cli "统计一下订单总数" --llm
+python -m dbreport.serve.cli "统计一下订单总数" --llm
 ```
 
 **或**直接用环境变量（等价，优先级更高）：
 
 ```powershell
 $env:DBR_LLM_API_KEY = "sk-你的真实key"
-python -m dbreport.cli "统计一下订单总数" --llm
+python -m dbreport.serve.cli "统计一下订单总数" --llm
 ```
 
 > 兼容任意 OpenAI 格式的 chat/completions 服务（OpenAI / DeepSeek / 各类网关）。`.env.example` 模板会上传，`.env` 真实配置不会。

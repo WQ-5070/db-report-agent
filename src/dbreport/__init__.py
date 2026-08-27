@@ -2,13 +2,13 @@
 
 对应 docs/DESIGN.md：语义层 / 护栏 / 执行层 / 呈现层 / 编排层 / LLM 接入。
 """
-from .executor import QueryExecutor, QueryResult
-from .guardrails import SqlGuardrails, ValidationResult
-from .llm import LLMClient, LLMError, OpenAICompatibleClient
-from .pipeline import Report, ReportPipeline, UnmatchedQuestion
-from .reporting import build_report, chart_spec, infer_chart
-from .semantic import (Metric, SchemaCatalog, SemanticRegistry,
-                       build_default_registry)
+from .core.executor import QueryExecutor, QueryResult
+from .core.guardrails import SqlGuardrails, ValidationResult
+from .core.llm import LLMClient, LLMError, OpenAICompatibleClient
+from .core.pipeline import Report, ReportPipeline, UnmatchedQuestion
+from .core.reporting import build_report, chart_spec, infer_chart
+from .core.semantic import (Metric, SchemaCatalog, SemanticRegistry,
+                            build_default_registry)
 
 __version__ = "1.0.0"
 

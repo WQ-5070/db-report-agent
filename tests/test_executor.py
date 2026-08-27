@@ -1,7 +1,7 @@
 import tempfile
 import unittest
 
-from dbreport.executor import QueryExecutor
+from dbreport.core.executor import QueryExecutor
 
 from tests._fixture import make_db
 

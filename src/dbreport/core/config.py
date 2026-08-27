@@ -8,8 +8,8 @@ from __future__ import annotations
 import os
 import pathlib
 
-# 项目根（src/dbreport/config.py -> parents[2]）
-PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2]
+# 项目根（src/dbreport/core/config.py -> parents[3]；移动目录层级时记得改）
+PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[3]
 DEFAULT_ENV_PATH = PROJECT_ROOT / ".env"
 
 

@@ -4,8 +4,8 @@ import unittest
 import urllib.error
 from unittest import mock
 
-from dbreport.llm import LLMError, OpenAICompatibleClient
-from dbreport.pipeline import _extract_sql
+from dbreport.core.llm import LLMError, OpenAICompatibleClient
+from dbreport.core.pipeline import _extract_sql
 
 
 class ExtractSqlTest(unittest.TestCase):
@@ -24,13 +24,13 @@ class ExtractSqlTest(unittest.TestCase):
 class OpenAICompatibleClientTest(unittest.TestCase):
     def test_requires_api_key(self):
         # 隔离项目 .env：清空环境变量，且不加载 .env，模拟"未配置任何 key"
-        with mock.patch("dbreport.llm.load_dotenv"):
+        with mock.patch("dbreport.core.llm.load_dotenv"):
             with mock.patch.dict(os.environ, {}, clear=True):
                 with self.assertRaises(ValueError):
                     OpenAICompatibleClient(api_key="")
 
     def test_defaults_from_env(self):
-        with mock.patch("dbreport.llm.load_dotenv"):
+        with mock.patch("dbreport.core.llm.load_dotenv"):
             with mock.patch.dict(os.environ, {}, clear=True):
                 with self.assertRaises(ValueError):
                     OpenAICompatibleClient(base_url="https://x/v1", api_key=None)

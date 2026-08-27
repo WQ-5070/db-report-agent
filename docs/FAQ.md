@@ -58,9 +58,9 @@ PyCharm 里运行：`Run → Edit Configurations → + → Python`，Module name
 ## 7. 命令行/评测需要 `PYTHONPATH=src` 吗？
 
 - **装了包（`pip install -e .`）后都不需要**：
-  - `python -m dbreport.cli "各地区订单量占比？"` 直接跑；
+  - `python -m dbreport.serve.cli "各地区订单量占比？"` 直接跑；
   - `python eval/run_eval.py` 直接跑（`from dbreport...` 在模块顶部，解释器可见）。
-- **没装包**时：`python -m dbreport.cli` 需 `$env:PYTHONPATH = "src"`；`run_eval.py` 因内置 `sys.path` 注入可直接跑。
+- **没装包**时：`python -m dbreport.serve.cli` 需 `$env:PYTHONPATH = "src"`；`run_eval.py` 需装包，测试自包含会自动注入 `src`。
 
 ## 8. git 基线与回退
 
@@ -96,3 +96,9 @@ PyCharm 里运行：`Run → Edit Configurations → + → Python`，Module name
 - **原因**：sqlite **不会自动创建父目录**（`.dbreport/`），目录不存在就直接报错——这是与第 3 条（相对路径依赖工作目录）**不同的诱因**，同一个报错。
 - **解决**：连接前 `pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)`（`memory.py` 构造即此写法）。
 - **注意**：默认库路径若含自定义子目录，务必先建目录；报错文案相同，排查时先分"路径错"还是"目录不存在"。
+
+## 12. 移动模块目录后 `PROJECT_ROOT` 错位（默认路径多了一层 src）
+
+- **现象**：把 `config.py` 从 `src/dbreport/` 移到 `src/dbreport/core/` 后，所有默认路径（库/指标/记忆/.env）变成 `src\demos\...`、找不到文件。
+- **原因**：`PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2]` 按"文件所在层级"推算；**模块每下沉一层目录，parents 索引就要 +1**（core/config.py 需要 `parents[3]`）。
+- **解决**：`src/dbreport/core/config.py` 用 `parents[3]`（代码注释已提醒）。**移动目录层级时必须同步检查 `config.py` 的 parents 索引**，这是本次 core/serve 分层踩到的坑。

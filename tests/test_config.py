@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 
-from dbreport.config import load_dotenv
+from dbreport.core.config import load_dotenv
 
 
 class LoadDotenvTest(unittest.TestCase):

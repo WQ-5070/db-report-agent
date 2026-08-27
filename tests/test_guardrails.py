@@ -1,8 +1,8 @@
 import tempfile
 import unittest
 
-from dbreport.guardrails import SqlGuardrails
-from dbreport.semantic import SchemaCatalog
+from dbreport.core.guardrails import SqlGuardrails
+from dbreport.core.semantic import SchemaCatalog
 
 from tests._fixture import make_db
 

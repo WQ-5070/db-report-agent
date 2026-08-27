@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from .serve import build_pipeline
+from . import build_pipeline
 
 HOST, PORT = "127.0.0.1", 8730
 

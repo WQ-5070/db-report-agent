@@ -16,10 +16,10 @@ import os
 import pathlib
 import sys
 
-from dbreport.executor import QueryExecutor
-from dbreport.guardrails import SqlGuardrails
-from dbreport.pipeline import ReportPipeline, UnmatchedQuestion
-from dbreport.semantic import SchemaCatalog, build_default_registry
+from dbreport.core.executor import QueryExecutor
+from dbreport.core.guardrails import SqlGuardrails
+from dbreport.core.pipeline import ReportPipeline, UnmatchedQuestion
+from dbreport.core.semantic import SchemaCatalog, build_default_registry
 
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[1]
 GOLDEN = pathlib.Path(__file__).parent / "golden.json"
@@ -96,7 +96,7 @@ def main() -> int:
 
     llm = None
     if args.llm:
-        from dbreport.llm import OpenAICompatibleClient
+        from dbreport.core.llm import OpenAICompatibleClient
         llm = OpenAICompatibleClient()
 
     pipeline = ReportPipeline(

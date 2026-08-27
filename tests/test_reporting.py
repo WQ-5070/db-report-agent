@@ -1,8 +1,8 @@
 import tempfile
 import unittest
 
-from dbreport.executor import QueryExecutor, QueryResult
-from dbreport.reporting import infer_chart
+from dbreport.core.executor import QueryExecutor, QueryResult
+from dbreport.core.reporting import infer_chart
 
 from tests._fixture import make_db
 

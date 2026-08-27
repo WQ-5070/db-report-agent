@@ -16,7 +16,7 @@ import argparse
 import os
 import sys
 
-from .serve import DEFAULT_DB, build_pipeline
+from . import DEFAULT_DB, build_pipeline
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -36,14 +36,14 @@ def main(argv: list[str] | None = None) -> int:
 
     llm = None
     if args.llm:
-        from .llm import OpenAICompatibleClient
+        from ..core.llm import OpenAICompatibleClient
         try:
             llm = OpenAICompatibleClient()
         except ValueError as exc:
             print(f"[错误] {exc}")
             return 1
 
-    from .pipeline import UnmatchedQuestion
+    from ..core.pipeline import UnmatchedQuestion
     pipeline = build_pipeline(args.db)
     try:
         report = pipeline.ask(args.question, llm=llm)

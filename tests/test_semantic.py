@@ -1,7 +1,7 @@
 import tempfile
 import unittest
 
-from dbreport.semantic import SchemaCatalog, SemanticRegistry, build_default_registry
+from dbreport.core.semantic import SchemaCatalog, SemanticRegistry, build_default_registry
 
 from tests._fixture import make_db
 

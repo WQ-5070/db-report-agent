@@ -5,12 +5,12 @@
 """
 from __future__ import annotations
 
-from .config import PROJECT_ROOT
-from .executor import QueryExecutor
-from .guardrails import SqlGuardrails
-from .memory import Memory
-from .pipeline import ReportPipeline
-from .semantic import SchemaCatalog, build_registry
+from ..core.config import PROJECT_ROOT
+from ..core.executor import QueryExecutor
+from ..core.guardrails import SqlGuardrails
+from ..core.memory import Memory
+from ..core.pipeline import ReportPipeline
+from ..core.semantic import SchemaCatalog, build_registry
 
 DEFAULT_DB = str(PROJECT_ROOT / "demos" / "db-report-agent.db")
 

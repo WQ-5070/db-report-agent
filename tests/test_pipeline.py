@@ -1,10 +1,10 @@
 import tempfile
 import unittest
 
-from dbreport.executor import QueryExecutor
-from dbreport.guardrails import SqlGuardrails
-from dbreport.pipeline import ReportPipeline, UnmatchedQuestion
-from dbreport.semantic import (Metric, SchemaCatalog, SemanticRegistry,
+from dbreport.core.executor import QueryExecutor
+from dbreport.core.guardrails import SqlGuardrails
+from dbreport.core.pipeline import ReportPipeline, UnmatchedQuestion
+from dbreport.core.semantic import (Metric, SchemaCatalog, SemanticRegistry,
                                build_default_registry)
 
 from tests._fixture import make_db
@@ -97,7 +97,7 @@ class ReportPipelineTest(unittest.TestCase):
         self.assertIn("护栏拦截", report.report_md)
 
     def test_memory_few_shot_injection_and_auto_train(self):
-        from dbreport.memory import Memory
+        from dbreport.core.memory import Memory
         mem = Memory(self._tmp.name + "/mem.db")
         mem.train("各品类销售额对比",
                   "SELECT product_category, SUM(amount) AS sales FROM orders "

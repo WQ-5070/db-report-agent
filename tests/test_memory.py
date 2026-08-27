@@ -3,7 +3,7 @@ import pathlib
 import tempfile
 import unittest
 
-from dbreport.memory import Memory
+from dbreport.core.memory import Memory
 
 
 class MemoryTest(unittest.TestCase):

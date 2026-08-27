@@ -10,7 +10,7 @@ from http.server import ThreadingHTTPServer
 
 from tests._fixture import make_db
 
-from dbreport.api import Handler
+from dbreport.serve.api import Handler
 from dbreport.serve import build_pipeline
 
 

@@ -1,0 +1,42 @@
+[
+  {
+    "id": "monthly_sales",
+    "aliases": ["销售额", "sales", "营收", "gmv", "每月"],
+    "sql": "SELECT strftime('%Y-%m', order_date) AS month, ROUND(SUM(amount), 2) AS sales FROM orders GROUP BY month ORDER BY month",
+    "title": "月度销售额",
+    "chart": "line",
+    "x": "month",
+    "y": "sales",
+    "insight": "销售额整体呈上升趋势，年底为旺季峰值；留意异常月份回落原因。"
+  },
+  {
+    "id": "region_orders",
+    "aliases": ["地区", "region", "区域", "占比", "订单量"],
+    "sql": "SELECT r.region_name AS region, COUNT(o.order_id) AS orders FROM orders o JOIN regions r ON o.region_id = r.region_id GROUP BY region ORDER BY orders DESC",
+    "title": "各地区订单量占比",
+    "chart": "pie",
+    "x": "region",
+    "y": "orders",
+    "insight": "订单集中在人口密集区域，西北、西南相对较低，可评估渠道投放。"
+  },
+  {
+    "id": "category_sales",
+    "aliases": ["品类", "产品", "category", "类别"],
+    "sql": "SELECT product_category AS category, ROUND(SUM(amount), 2) AS sales FROM orders GROUP BY category ORDER BY sales DESC",
+    "title": "各品类销售额",
+    "chart": "bar",
+    "x": "category",
+    "y": "sales",
+    "insight": "数码、家电贡献销售主体；可结合毛利率评估品类结构。"
+  },
+  {
+    "id": "active_users",
+    "aliases": ["用户", "活跃", "user"],
+    "sql": "SELECT city, COUNT(*) AS active_users FROM users WHERE is_active = 1 GROUP BY city ORDER BY active_users DESC",
+    "title": "各城市活跃用户数",
+    "chart": "bar",
+    "x": "city",
+    "y": "active_users",
+    "insight": "活跃用户集中于人口密集城市，与订单分布基本一致。"
+  }
+]

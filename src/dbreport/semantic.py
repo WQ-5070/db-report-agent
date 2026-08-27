@@ -1,18 +1,28 @@
 """语义层：指标/口径 Registry + 数据库 Schema 目录。
 
 对应 docs/DESIGN.md 第 9 节。核心思想是"数据代替逻辑"：
-指标口径、别名、默认呈现方式都是数据；匹配与检索只是不变骨架。
+指标口径、别名、默认呈现方式都是数据（semantics/metrics.json 资产文件），
+匹配与检索只是不变骨架；加指标 = 加一条数据，不改代码。
 """
 from __future__ import annotations
 
+import json
+import pathlib
 import re
 import sqlite3
 from contextlib import closing
 from dataclasses import dataclass
 
+from .config import PROJECT_ROOT
+
 # 敏感列关键词（小写匹配列名子串）——演示用数据驱动名单，生产接数据分级系统
 SENSITIVE_KEYWORDS = ("password", "token", "secret", "id_card", "phone",
                       "email", "身份证", "手机", "电话")
+
+# 指标资产文件（数据唯一来源；生产可指向独立配置路径）
+METRICS_PATH = PROJECT_ROOT / "semantics" / "metrics.json"
+_REQUIRED_FIELDS = ("id", "aliases", "sql", "title", "chart", "x", "y",
+                    "insight")
 
 
 @dataclass(frozen=True)
@@ -81,6 +91,23 @@ class Metric:
     y: str
     insight: str
 
+    @classmethod
+    def from_dict(cls, data: dict) -> "Metric":
+        """从资产文件条目构建；缺字段立即报错（配置错了要大声）。"""
+        missing = [f for f in _REQUIRED_FIELDS if f not in data]
+        if missing:
+            raise ValueError(f"指标缺少字段: {', '.join(missing)}")
+        return cls(
+            id=data["id"],
+            aliases=tuple(data["aliases"]),
+            sql=data["sql"],
+            title=data["title"],
+            chart=data["chart"],
+            x=data["x"],
+            y=data["y"],
+            insight=data["insight"],
+        )
+
 
 class SemanticRegistry:
     """按问题匹配指标。命中别名最多的指标胜出（平局取先定义者）。"""
@@ -105,49 +132,30 @@ class SemanticRegistry:
         return best
 
 
-# 内置指标：与 demos/seed 样例库对齐的口径（生产从语义层配置/数据库加载）
-DEFAULT_METRICS = [
-    Metric(
-        id="monthly_sales",
-        aliases=("销售额", "sales", "营收", "gmv", "每月"),
-        sql="SELECT strftime('%Y-%m', order_date) AS month, "
-            "ROUND(SUM(amount), 2) AS sales FROM orders "
-            "GROUP BY month ORDER BY month",
-        title="月度销售额", chart="line", x="month", y="sales",
-        insight="销售额整体呈上升趋势，年底为旺季峰值；留意异常月份回落原因。",
-    ),
-    Metric(
-        id="region_orders",
-        aliases=("地区", "region", "区域", "占比", "订单量"),
-        sql="SELECT r.region_name AS region, COUNT(o.order_id) AS orders "
-            "FROM orders o JOIN regions r ON o.region_id = r.region_id "
-            "GROUP BY region ORDER BY orders DESC",
-        title="各地区订单量占比", chart="pie", x="region", y="orders",
-        insight="订单集中在人口密集区域，西北、西南相对较低，可评估渠道投放。",
-    ),
-    Metric(
-        id="category_sales",
-        aliases=("品类", "产品", "category", "类别"),
-        sql="SELECT product_category AS category, ROUND(SUM(amount), 2) AS sales "
-            "FROM orders GROUP BY category ORDER BY sales DESC",
-        title="各品类销售额", chart="bar", x="category", y="sales",
-        insight="数码、家电贡献销售主体；可结合毛利率评估品类结构。",
-    ),
-    Metric(
-        id="active_users",
-        aliases=("用户", "活跃", "user"),
-        sql="SELECT city, COUNT(*) AS active_users FROM users "
-            "WHERE is_active = 1 GROUP BY city ORDER BY active_users DESC",
-        title="各城市活跃用户数", chart="bar", x="city", y="active_users",
-        insight="活跃用户集中于人口密集城市，与订单分布基本一致。",
-    ),
-]
+def load_metrics(path: str | pathlib.Path) -> list[Metric]:
+    """从 JSON 资产文件加载指标：字段校验 + id 唯一（防配置手滑）。"""
+    raw = json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
+    metrics = [Metric.from_dict(item) for item in raw]
+    ids = [m.id for m in metrics]
+    duplicates = sorted({i for i in ids if ids.count(i) > 1})
+    if duplicates:
+        raise ValueError(f"指标 id 重复: {duplicates}")
+    return metrics
+
+
+def build_registry(path: str | pathlib.Path | None = None) -> SemanticRegistry:
+    """构建注册表：从指标资产文件加载（默认 semantics/metrics.json）。
+
+    文件缺失/损坏时直接报错——指标是系统一部分，坏了要大声，不静默回退。
+    """
+    metrics_path = pathlib.Path(path) if path else METRICS_PATH
+    if not metrics_path.exists():
+        raise FileNotFoundError(
+            f"指标资产文件不存在: {metrics_path}；"
+            "请检查 semantics/metrics.json")
+    return SemanticRegistry(load_metrics(metrics_path))
 
 
 def build_default_registry() -> SemanticRegistry:
-    """内置指标注册表（与 demos/seed 样例库口径对齐）。
-
-    生产形态：指标从语义层配置/数据库加载（见 docs/DESIGN.md 第 9 节），
-    此处是随库分发的默认集。
-    """
-    return SemanticRegistry(list(DEFAULT_METRICS))
+    """兼容别名：读默认指标资产文件（semantics/metrics.json）。"""
+    return build_registry()

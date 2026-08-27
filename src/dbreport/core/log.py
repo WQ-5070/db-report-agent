@@ -7,10 +7,11 @@ import sys
 
 
 def log(message: str, level: str = "INFO", **fields) -> None:
-    """打一条结构化日志；trace 字段特殊处理（放最前，便于 grep 串联）。"""
-    parts = [f"[{level}]", message]
+    """打一条结构化日志；trace 字段紧跟级别后，便于一行内一眼串联。"""
+    parts = [f"[{level}]"]
     trace = fields.pop("trace", None)
     if trace:
         parts.append(f"trace={trace}")
+    parts.append(message)
     parts.extend(f"{k}={v}" for k, v in fields.items())
     print(" ".join(parts), file=sys.stderr)

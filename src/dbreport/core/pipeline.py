@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from .executor import QueryExecutor, QueryResult
 from .guardrails import SqlGuardrails, ValidationResult
 from .llm import LLMClient
+from .log import log
 from .reporting import INSIGHT_ROWS, build_report, chart_spec, infer_chart
 from .semantic import Metric, SemanticRegistry
 
@@ -62,36 +63,49 @@ class ReportPipeline:
 
     def ask(self, question: str, llm: LLMClient | None = None) -> Report:
         trace_id = uuid.uuid4().hex[:8]
+        log("收到问题", trace=trace_id, question=question)
         metric = self._registry.match(question)
         if metric is not None:
             return self._light(question, metric, trace_id)
         if llm is None:
+            log("未匹配语义层且无 LLM", level="WARN", trace=trace_id)
             raise UnmatchedQuestion(
                 f"未匹配到语义层指标（SEMANTIC_NOT_FOUND）: {question!r}；"
                 "如需动态生成 SQL，请启用 --llm")
         return self._heavy(question, llm, trace_id)
 
     def _light(self, question: str, metric: Metric, trace_id: str) -> Report:
+        log("轻路径命中", trace=trace_id, metric=metric.id)
         validation = self._guardrails.validate(metric.sql)
         if not validation.ok:
+            log("护栏拦截", level="WARN", trace=trace_id,
+                reason=validation.message)
             return Report(question, metric.id, metric.sql, validation, None, None,
                           f"SQL 被护栏拦截：{validation.message}", trace_id)
+        log("护栏通过", trace=trace_id)
         result = self._executor.run(validation.safe_sql)
+        log("执行完成", trace=trace_id, rows=result.row_count,
+            elapsed_ms=round(result.elapsed_ms, 2))
         report_md = build_report(question, metric, validation.safe_sql,
                                  result, trace_id, validation.message)
         return Report(question, metric.id, validation.safe_sql, validation,
                       result, chart_spec(metric, result), report_md, trace_id)
 
     def _heavy(self, question: str, llm: LLMClient, trace_id: str) -> Report:
-        sql, validation = self._generate_valid_sql(question, llm)
+        sql, validation = self._generate_valid_sql(question, llm, trace_id)
         if validation is None:
+            log("LLM 未产出可用 SQL", level="ERROR", trace=trace_id)
             return Report(question, None, sql, None, None, None,
                           "SQL 生成失败：LLM 未产出可用 SQL", trace_id)
         if not validation.ok:
+            log("护栏拦截", level="WARN", trace=trace_id,
+                reason=validation.message)
             return Report(question, None, sql, validation, None, None,
                           f"SQL 生成被护栏拦截：{validation.message}", trace_id)
 
         result = self._executor.run(validation.safe_sql)
+        log("执行完成", trace=trace_id, rows=result.row_count,
+            elapsed_ms=round(result.elapsed_ms, 2))
         chart = infer_chart(result)
         insight = self._generate_insight(question, llm, result)
         self._remember(question, validation.safe_sql, result)
@@ -109,13 +123,15 @@ class ReportPipeline:
         if self._memory is not None and result.row_count > 0:
             self._memory.train(question, sql)
 
-    def _generate_valid_sql(self, question: str,
-                            llm: LLMClient) -> tuple[str | None, ValidationResult | None]:
+    def _generate_valid_sql(self, question: str, llm: LLMClient,
+                            trace_id: str) -> tuple[str | None, ValidationResult | None]:
         """生成 SQL 并过护栏；失败时把护栏原因反馈给 LLM 重试。"""
         schema_text = self._schema_text()
         examples = self._memory.similar(question) if self._memory else []
+        if examples:
+            log("记忆命中 few-shot", trace=trace_id, samples=len(examples))
         last_validation: ValidationResult | None = None
-        for _ in range(self._max_sql_retries):
+        for attempt in range(1, self._max_sql_retries + 1):
             feedback = last_validation.message if last_validation else None
             raw = llm.complete(
                 self._sql_prompt(question, schema_text, feedback, examples))
@@ -124,6 +140,8 @@ class ReportPipeline:
                 last_validation = ValidationResult(False, "LLM 未输出 SQL", "", ())
                 continue
             validation = self._guardrails.validate(sql)
+            log("LLM SQL 尝试", trace=trace_id, attempt=attempt,
+                ok=validation.ok)
             if validation.ok:
                 return sql, validation
             last_validation = validation

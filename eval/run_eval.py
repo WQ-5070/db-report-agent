@@ -28,17 +28,20 @@ HEAL_THRESHOLD = 2  # 结果集不符连续失败多少次后自愈剔除（期�
 FAILURES_PATH = PROJECT_ROOT / ".dbreport" / "eval_failures.json"
 
 
-def _load_failures() -> dict:
+def _load_failures(path: str | pathlib.Path | None = None) -> dict:
     """读取跨运行的连续失败计数（文件不存在 = 全新开始）。"""
-    if FAILURES_PATH.exists():
-        return json.loads(FAILURES_PATH.read_text(encoding="utf-8"))
+    failures_path = pathlib.Path(path) if path else FAILURES_PATH
+    if failures_path.exists():
+        return json.loads(failures_path.read_text(encoding="utf-8"))
     return {}
 
 
-def _save_failures(failures: dict) -> None:
-    """持久化连续失败计数（写入前确保 .dbreport/ 目录存在）。"""
-    FAILURES_PATH.parent.mkdir(parents=True, exist_ok=True)
-    FAILURES_PATH.write_text(
+def _save_failures(failures: dict,
+                   path: str | pathlib.Path | None = None) -> None:
+    """持久化连续失败计数（写入前确保父目录存在）。"""
+    failures_path = pathlib.Path(path) if path else FAILURES_PATH
+    failures_path.parent.mkdir(parents=True, exist_ok=True)
+    failures_path.write_text(
         json.dumps(failures, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
@@ -102,7 +105,7 @@ def main() -> int:
         QueryExecutor(args.db),
     )
     golden = json.loads(pathlib.Path(args.golden).read_text(encoding="utf-8"))
-    failures = _load_failures() if args.heal else {}
+    failures = _load_failures(args.failures) if args.heal else {}
     healed: list[str] = []
 
     light_failures: list[str] = []
@@ -134,7 +137,7 @@ def main() -> int:
         else:
             failures.pop(q, None)  # 通过即清零，连续失败才累计
     if args.heal:
-        _save_failures(failures)
+        _save_failures(failures, args.failures)
 
     unsafe_leaks: list[str] = []
     unsafe_handled = 0

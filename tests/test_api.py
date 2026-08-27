@@ -62,6 +62,13 @@ class ApiTest(unittest.TestCase):
         body = json.loads(ctx.exception.read().decode("utf-8"))
         self.assertEqual(body["error"]["code"], "SEMANTIC_NOT_FOUND")
 
+    def test_session_id_continues_multi_turn(self):
+        first = self._post({"question": "各地区订单量占比？"})
+        self.assertTrue(first["session_id"])
+        second = self._post({"session_id": first["session_id"],
+                             "question": "各地区订单量占比？"})
+        self.assertEqual(second["session_id"], first["session_id"])
+
 
 if __name__ == "__main__":
     unittest.main()

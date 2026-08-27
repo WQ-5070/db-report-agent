@@ -65,7 +65,8 @@ class ReportPipeline:
         self._memory = memory
         self._max_sql_retries = max_sql_retries
 
-    def ask(self, question: str, llm: LLMClient | None = None) -> Report:
+    def ask(self, question: str, llm: LLMClient | None = None,
+            history: list[str] | None = None) -> Report:
         trace_id = uuid.uuid4().hex[:8]
         log("收到问题", trace=trace_id, question=question)
         metric = self._registry.match(question)
@@ -76,7 +77,7 @@ class ReportPipeline:
             raise UnmatchedQuestion(
                 f"未匹配到语义层指标（SEMANTIC_NOT_FOUND）: {question!r}；"
                 "如需动态生成 SQL，请启用 --llm")
-        return self._heavy(question, llm, trace_id)
+        return self._heavy(question, llm, trace_id, history)
 
     def _light(self, question: str, metric: Metric, trace_id: str) -> Report:
         log("轻路径命中", trace=trace_id, metric=metric.id)
@@ -95,8 +96,10 @@ class ReportPipeline:
         return Report(question, metric.id, validation.safe_sql, validation,
                       result, chart_spec(metric, result), report_md, trace_id)
 
-    def _heavy(self, question: str, llm: LLMClient, trace_id: str) -> Report:
-        sql, validation = self._generate_valid_sql(question, llm, trace_id)
+    def _heavy(self, question: str, llm: LLMClient, trace_id: str,
+               history: list[str] | None = None) -> Report:
+        sql, validation = self._generate_valid_sql(question, llm, trace_id,
+                                                   history)
         if validation is None:
             log("LLM 未产出可用 SQL", level="ERROR", trace=trace_id)
             return Report(question, None, sql, None, None, None,
@@ -128,7 +131,9 @@ class ReportPipeline:
             self._memory.train(question, sql)
 
     def _generate_valid_sql(self, question: str, llm: LLMClient,
-                            trace_id: str) -> tuple[str | None, ValidationResult | None]:
+                            trace_id: str,
+                            history: list[str] | None = None
+                            ) -> tuple[str | None, ValidationResult | None]:
         """生成 SQL 并过护栏；失败时把护栏原因反馈给 LLM 重试。"""
         schema_text = self._schema_text()
         examples = self._memory.similar(question) if self._memory else []
@@ -137,8 +142,8 @@ class ReportPipeline:
         last_validation: ValidationResult | None = None
         for attempt in range(1, self._max_sql_retries + 1):
             feedback = last_validation.message if last_validation else None
-            raw = llm.complete(
-                self._sql_prompt(question, schema_text, feedback, examples))
+            raw = llm.complete(self._sql_prompt(
+                question, schema_text, feedback, examples, history))
             sql = _extract_sql(raw)
             if not sql:
                 last_validation = ValidationResult(False, "LLM 未输出 SQL", "", ())
@@ -173,7 +178,8 @@ class ReportPipeline:
     @staticmethod
     def _sql_prompt(question: str, schema_text: str,
                     feedback: str | None = None,
-                    examples: list[tuple[str, str]] | None = None) -> str:
+                    examples: list[tuple[str, str]] | None = None,
+                    history: list[str] | None = None) -> str:
         prompt = (
             "你是数据查询 Agent。根据数据库 schema 与用户问题，"
             "生成一条只读 SELECT SQL（SQLite 方言）。\n"
@@ -183,6 +189,11 @@ class ReportPipeline:
             "- 直接输出 SQL 本身，不要解释、不要 markdown 围栏\n\n"
             f"数据库 schema：\n{schema_text}\n\n"
         )
+        if history:
+            lines = [f"{i}. {q}" for i, q in enumerate(history, 1)]
+            prompt += ("历史对话（用户可能用'那/它/这里'指代前面的问题，"
+                       "请结合语境理解当前问题）：\n"
+                       + "\n".join(lines) + "\n\n")
         if examples:
             lines = [f"问题: {q}\nSQL: {sql}" for q, sql in examples]
             prompt += ("历史相似问题的参考 SQL（写法可复用，注意不要照抄业务条件）：\n"

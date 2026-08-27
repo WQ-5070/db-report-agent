@@ -1,10 +1,12 @@
 """最小 HTTP API 入口（serve 层）：证明"换入口不动 core"。
 
 用法:
-    python -m dbreport.api                          # 启动 http://127.0.0.1:8730
+    python -m dbreport.serve.api                  # 启动 http://127.0.0.1:8730
     curl -X POST http://127.0.0.1:8730/ask \
          -H "Content-Type: application/json" \
          -d '{"question": "各地区订单量占比？"}'
+    # 多轮对话：带上 session_id 续接同一会话
+    -d '{"session_id": "abc123", "question": "那华东呢？"}'
 
 标准库 http.server 实现，零第三方依赖；装配复用 serve.build_pipeline，
 core 模块不知道外面是 CLI 还是 HTTP 在调。
@@ -15,9 +17,13 @@ import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from ..core.errors import AgentError
+from ..core.session import Session
 from . import build_pipeline
 
 HOST, PORT = "127.0.0.1", 8730
+
+# 进程内会话存储：session_id → Session（多轮对话上下文，服务重启即清空）
+_sessions: dict[str, Session] = {}
 
 
 def report_to_dict(report) -> dict:
@@ -36,7 +42,7 @@ def report_to_dict(report) -> dict:
 
 
 class Handler(BaseHTTPRequestHandler):
-    """POST /ask {question} → 报告 JSON。pipeline 可被测试替换（类属性）。"""
+    """POST /ask {question, session_id?} → 报告 JSON。pipeline 可被测试替换。"""
 
     pipeline = build_pipeline()
 
@@ -47,12 +53,23 @@ class Handler(BaseHTTPRequestHandler):
         try:
             body = json.loads(
                 self.rfile.read(int(self.headers.get("Content-Length", 0))))
-            report = self.pipeline.ask(body.get("question", ""))
-            self._send(200, report_to_dict(report))
+            session = self._get_session(body.get("session_id"))
+            report = session.ask(body.get("question", ""))
+            payload = report_to_dict(report)
+            payload["session_id"] = session.id
+            self._send(200, payload)
         except AgentError as exc:
             self._send(400, {"error": {"code": exc.code, "message": str(exc)}})
         except Exception as exc:
             self._send(500, {"error": {"code": "INTERNAL", "message": str(exc)}})
+
+    def _get_session(self, session_id: str | None) -> Session:
+        """按 id 取会话；不存在则新建（多轮对话续接的关键）。"""
+        session = _sessions.get(session_id or "")
+        if session is None:
+            session = Session(self.pipeline)
+            _sessions[session.id] = session
+        return session
 
     def _send(self, code: int, payload: dict) -> None:
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")

@@ -113,29 +113,43 @@ db-report-agent/
 ├── README.md              # 本文件
 ├── pyproject.toml         # 包定义 + 可选依赖组（demo / prod）
 ├── requirements.txt       # 最小演示依赖（PyCharm 识别，创建 venv 用）
-├── docs/
-│   └── DESIGN.md          # 生产级详细设计文档
-├── src/
-│   └── dbreport/          # 完整 Agent（v1.0.0，标准库实现）
-│       ├── config.py      # .env 加载（标准库，密钥不进 Git）
-│       ├── semantic.py    # 语义层：指标/口径 Registry + Schema 目录
-│       ├── guardrails.py  # 护栏：只读/单语句/LIMIT/白名单/敏感列
-│       ├── executor.py    # 执行层：只读连接(PRAGMA query_only) + 结果缓存
-│       ├── reporting.py   # 呈现层：图表 spec + Markdown 报告(含血缘)
-│       ├── pipeline.py    # 编排层：轻/重双路径（LLM 生成 SQL→护栏重试→洞察）
-│       ├── llm.py         # LLM 接入：OpenAI 兼容客户端（标准库，自动读 .env）
-│       └── cli.py         # 命令行入口
+├── uv.lock                # 完整依赖树锁定（uv sync 复现环境）
+├── .python-version        # 锁定 Python 3.12
 ├── .env.example           # 环境配置模板（上传；真实 .env 被忽略，不上传）
+├── .github/workflows/
+│   └── ci.yml             # CI 门禁：push/PR 自动跑 45 单测 + 评测回归
+├── docs/
+│   ├── DESIGN.md          # 生产级详细设计文档（含 5.3 基座选型结论）
+│   └── FAQ.md             # 踩坑记录（12 条，写 sqlite 前必翻）
+├── semantics/
+│   └── metrics.json       # 指标资产（Git 版本化；加指标=加数据，不改代码）
+├── src/
+│   └── dbreport/
+│       ├── __init__.py    # 再导出核心类（from dbreport import X）
+│       ├── core/          # 纯能力层（不依赖 serve）
+│       │   ├── config.py      # .env 加载 + PROJECT_ROOT（密钥不进 Git）
+│       │   ├── semantic.py    # 语义层：指标资产加载 + 匹配 + Schema 目录
+│       │   ├── guardrails.py  # 护栏：只读/单语句/LIMIT/敏感列
+│       │   ├── executor.py    # 执行层：只读连接 + 结果缓存
+│       │   ├── reporting.py   # 呈现层：图表 spec + Markdown 报告
+│       │   ├── pipeline.py    # 编排层：轻/重双路径 + 记忆注入 + 自学习
+│       │   ├── llm.py         # LLM 接入：OpenAI 兼容客户端（零依赖）
+│       │   ├── memory.py      # 记忆层：问题-SQL 沉淀/检索 + auto-train
+│       │   └── log.py         # 结构化日志：trace 串联全链路
+│       └── serve/         # 装配 + 入口层（换入口不动 core）
+│           ├── __init__.py    # build_pipeline() 唯一装配
+│           ├── cli.py         # 命令行入口（python -m dbreport.serve.cli）
+│           └── api.py         # HTTP 入口（python -m dbreport.serve.api，POST /ask）
 ├── demos/                 # 最小可运行 UI 演示（Streamlit）
 │   ├── docker-compose.yml
 │   ├── seed/
 │   │   ├── schema.sql
-│   │   └── generate_sample_data.py
+│   │   └── generate_sample_data.py   # 确定性样例库（seed=42，支持 --output）
 │   └── streamlit_app.py
-├── eval/                  # 评测：黄金集 + 指标回归（命中/执行/护栏拦截）
-│   ├── golden.json
-│   └── run_eval.py
-└── tests/                 # 单元测试（unittest，自包含临时库）
+├── eval/                  # 评测：结果集比对 + 自愈剔除
+│   ├── golden.json        # 黄金集（expected 结果集与样例库强绑定）
+│   └── run_eval.py        # 评测入口（--heal 自愈模式）
+└── tests/                 # 单元测试（45 用例，unittest 自包含）
 ```
 
 ---

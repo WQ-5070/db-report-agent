@@ -1,0 +1,30 @@
+# CI 门禁：每次 push / PR 自动跑「45 单测 + 评测回归」，红了就拦。
+# 流程复现本地验证路径：装包 → 生成确定性样例库（seed=42）→ 单测 → 评测。
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装本地包（核心零第三方依赖，秒装）
+        run: pip install -e .
+
+      - name: 生成确定性样例库（评测 expected 与其强绑定）
+        run: python demos/seed/generate_sample_data.py
+
+      - name: 单元测试
+        run: python -m unittest discover -s tests -t .
+
+      - name: 评测回归（轻路径命中/执行成功率/护栏拦截率）
+        run: python eval/run_eval.py

@@ -50,6 +50,13 @@
 ```bash
 # 1) 安装依赖
 pip install -r requirements.txt
+```
+
+> **依赖锁定**：`uv.lock` 锁定完整依赖树（含传递依赖），任何机器可复现同一环境：
+> ```bash
+> uv sync --extra demo    # 用 uv 按锁定的版本安装（streamlit/pandas/plotly 等）
+> ```
+> 核心 `dbreport` 本身零第三方依赖（标准库实现），lock 只锁定演示/生产增强组。
 
 # 2) 生成样例库（SQLite）
 python demos/seed/generate_sample_data.py

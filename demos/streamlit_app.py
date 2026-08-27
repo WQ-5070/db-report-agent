@@ -168,10 +168,10 @@ def main() -> None:
     col1, col2 = st.columns([3, 2])
     with col1:
         st.subheader("② 自动生成的图表")
-        st.plotly_chart(make_chart(metric, df), use_container_width=True)
+        st.plotly_chart(make_chart(metric, df), width="stretch")
     with col2:
         st.subheader("③ 数据预览")
-        st.dataframe(df.head(12), use_container_width=True)
+        st.dataframe(df.head(12), width="stretch")
 
     st.subheader("④ 自然语言洞察")
     st.info(metric["insight"])

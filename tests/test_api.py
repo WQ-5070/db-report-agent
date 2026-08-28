@@ -1,5 +1,6 @@
 """API 测试：起临时 HTTP server，POST /ask 验证"换入口不动 core"。"""
 import json
+import os
 import pathlib
 import tempfile
 import threading
@@ -7,6 +8,7 @@ import unittest
 import urllib.error
 import urllib.request
 from http.server import ThreadingHTTPServer
+from unittest import mock
 
 from tests._fixture import make_db
 
@@ -68,6 +70,21 @@ class ApiTest(unittest.TestCase):
         second = self._post({"session_id": first["session_id"],
                              "question": "各地区订单量占比？"})
         self.assertEqual(second["session_id"], first["session_id"])
+
+    def test_llm_request_without_key_returns_config_error(self):
+        """请求 llm=true 但无 key → 400 CONFIG_MISSING（不泄露配置细节）。"""
+        with mock.patch("dbreport.core.llm.load_dotenv"):
+            with mock.patch.dict(os.environ, {}, clear=True):
+                request = urllib.request.Request(
+                    f"{self.base}/ask",
+                    data=json.dumps({"question": "统计一下订单总数",
+                                     "llm": True}).encode("utf-8"),
+                    headers={"Content-Type": "application/json"})
+                with self.assertRaises(urllib.error.HTTPError) as ctx:
+                    urllib.request.urlopen(request)
+                self.assertEqual(ctx.exception.code, 400)
+                body = json.loads(ctx.exception.read().decode("utf-8"))
+                self.assertEqual(body["error"]["code"], "CONFIG_MISSING")
 
 
 if __name__ == "__main__":

@@ -32,6 +32,7 @@ def report_to_dict(report) -> dict:
     return {
         "question": report.question,
         "metric_id": report.metric_id,
+        "path": "llm" if report.metric_id == "llm_generated" else "light",
         "sql": report.sql,
         "row_count": result.row_count if result else None,
         "columns": list(result.columns) if result else None,
@@ -42,7 +43,7 @@ def report_to_dict(report) -> dict:
 
 
 class Handler(BaseHTTPRequestHandler):
-    """POST /ask {question, session_id?} → 报告 JSON。pipeline 可被测试替换。"""
+    """POST /ask {question, llm?, session_id?} → 报告 JSON。pipeline 可被测试替换。"""
 
     pipeline = build_pipeline()
 
@@ -53,8 +54,9 @@ class Handler(BaseHTTPRequestHandler):
         try:
             body = json.loads(
                 self.rfile.read(int(self.headers.get("Content-Length", 0))))
+            llm = self._build_llm(body.get("llm", False))
             session = self._get_session(body.get("session_id"))
-            report = session.ask(body.get("question", ""))
+            report = session.ask(body.get("question", ""), llm=llm)
             payload = report_to_dict(report)
             payload["session_id"] = session.id
             self._send(200, payload)
@@ -62,6 +64,18 @@ class Handler(BaseHTTPRequestHandler):
             self._send(400, {"error": {"code": exc.code, "message": str(exc)}})
         except Exception as exc:
             self._send(500, {"error": {"code": "INTERNAL", "message": str(exc)}})
+
+    @staticmethod
+    def _build_llm(enabled: bool):
+        """按请求参数构造 LLM（重量路径）；未启用返回 None。
+
+        key 从 .env 读（OpenAICompatibleClient 构造时自动加载），
+        缺失时抛 AgentError(CONFIG_MISSING) 由上层转结构化错误。
+        """
+        if not enabled:
+            return None
+        from ..core.llm import OpenAICompatibleClient
+        return OpenAICompatibleClient()
 
     def _get_session(self, session_id: str | None) -> Session:
         """按 id 取会话；不存在则新建（多轮对话续接的关键）。"""
